@@ -78,6 +78,7 @@ Example `data.json`:
 Data:
 
 - `read`, `write`, `append`, `clear`, `batchGet`, `batchWrite`
+- `highlight`, `unhighlight`
 
 Formatting:
 
@@ -126,6 +127,8 @@ Single-cell operations:
 - `append` - Data append
 - `clear` - Cell clear
 - `format` - Cell formatting
+- `highlight` - Cell highlight
+- `unhighlight` - Cell unhighlight
 
 Batch operations:
 
