@@ -1,30 +1,57 @@
 #!/usr/bin/env node
-"use strict";
+'use strict';
 
-const { google } = require("googleapis");
-const fs = require("fs");
-const path = require("path");
+require('dotenv').config();
 
-const READ_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
-const WRITE_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+const { google } = require('googleapis');
+const fs = require('fs');
+const path = require('path');
+const nodemailer = require('nodemailer');
+
+
+const READ_SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+const WRITE_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
 
 const DEFAULT_CRED_FILES = [
-  "service-account.json",
-  "credentials.json",
-  "google-service-account.json",
-  path.join(process.env.HOME || "", ".config/google-sheets/credentials.json"),
+  'service-account.json',
+  'credentials.json',
+  'google-service-account.json',
+  path.join(process.env.HOME || '', '.config/google-sheets/credentials.json'),
 ];
 
-const AUDIT_SPREADSHEET_ID = "1x7Ch_AOuLk6Zht2ef0Q--2K_QueKvcAft-P6d0sx76A";
-const AUDIT_SHEET_NAME = "Audit_Log";
+const AUDIT_SPREADSHEET_ID = '1x7Ch_AOuLk6Zht2ef0Q--2K_QueKvcAft-P6d0sx76A'
+const AUDIT_SHEET_NAME = 'Audit_Log'
+
+// for Cleaning sheet to change background color of date column when cleaning is done, to visually indicate last cleaning date
+const CLEANING_SPREADSHEET_ID = '1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU'
+const CLEANING_SHEET_NAME = 'Cleaning'
+const CLEANING_DATE_COLUMN = 'W'
+const CLEANING_DATE_COLOR = { red: 202 / 255, green: 237 / 255, blue: 251 / 255 } // #caedfb
+
+// ===== EMAIL CONFIGURATION =====
+const EMAIL_CONFIG = {
+  service: 'gmail', // or 'outlook', 'yahoo'
+  user: process.env.EMAIL_USER,      // your-email@gmail.com
+  pass: process.env.EMAIL_PASS,      // app password
+  recipient: process.env.EMAIL_RECIPIENT || 'recipient@example.com'
+}
+// ================================
+
 
 const formatTimestamp = (ts) => {
-  const [date, time] = ts.split(".")[0].split("T");
-  const [year, month, day] = date.split("-");
-  return `${parseInt(month)}/${parseInt(day)}/${parseInt(year)} ${time}`;
-};
+  const [date, time] = ts.split(".")[0].split('T')
+  const [year, month, day] = date.split('-')
+  return `${parseInt(month)}/${parseInt(day)}/${parseInt(year)} ${time}`
+}
 
-async function logAudit({ user, sheet, cell, oldValue, newValue, source }) {
+async function logAudit({
+  user,
+  sheet,
+  cell,
+  oldValue,
+  newValue,
+  source,
+}) {
   if (oldValue === newValue) {
     // No change → no audit log
     return;
@@ -36,22 +63,132 @@ async function logAudit({ user, sheet, cell, oldValue, newValue, source }) {
   await sheets.spreadsheets.values.append({
     spreadsheetId: AUDIT_SPREADSHEET_ID,
     range: `${AUDIT_SHEET_NAME}!A:G`,
-    valueInputOption: "RAW",
+    valueInputOption: 'RAW',
     requestBody: {
-      values: [
-        [
-          formatTimestamp(timestamp),
-          user || "unknown",
-          sheet || "",
-          cell || "",
-          oldValue ?? "",
-          newValue ?? "",
-          source || "sheets-cli",
-        ],
-      ],
+      values: [[
+        formatTimestamp(timestamp),
+        user || 'unknown',
+        sheet || '',
+        cell || '',
+        oldValue ?? '',
+        newValue ?? '',
+        source || 'sheets-cli',
+      ]],
     },
   });
 }
+
+//function for modified teh color to blue on change the date column W to visually indicate the last cleaning date
+async function formatCleaningDateCell(sheets, spreadsheetId, cell, oldValue, newValue) {
+  // Check: Correct spreadsheet, correct sheet, correct column
+  if (spreadsheetId !== CLEANING_SPREADSHEET_ID) return;
+
+  // Parse cell to get sheet name and column
+  const parts = cell.split('!');
+  if (parts.length < 2) return;
+
+  const sheetName = parts[0];
+  const cellRef = parts[1];
+
+  // Check: Sheet must be "Cleaning"
+  if (sheetName !== CLEANING_SHEET_NAME) return;
+
+  // Check: Column must be "W"
+  const columnMatch = cellRef.match(/^([A-Za-z]+)/);
+  if (!columnMatch || columnMatch[1].toUpperCase() !== CLEANING_DATE_COLUMN) return;
+
+  // Get row number
+  const rowMatch = cellRef.match(/(\d+)/);
+  if (!rowMatch) return;
+  const rowNumber = parseInt(rowMatch[1]);
+
+  // Get sheet ID
+  const sheetId = await getSheetIdByName(sheets, spreadsheetId, CLEANING_SHEET_NAME);
+
+  // Apply color to W column cell only
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [{
+        repeatCell: {
+          range: {
+            sheetId,
+            startRowIndex: rowNumber - 1,
+            endRowIndex: rowNumber,
+            startColumnIndex: 22,
+            endColumnIndex: 23,
+          },
+          cell: {
+            userEnteredFormat: {
+              backgroundColor: CLEANING_DATE_COLOR,
+            },
+          },
+          fields: 'userEnteredFormat.backgroundColor',
+        },
+      }],
+    },
+  });
+
+  // ===== SEND EMAIL NOTIFICATION =====
+  await sendCleaningDateEmail(cell, oldValue, newValue);
+  // ===================================
+}
+
+
+//email function to send email notification on cleaning date modification in cleaning sheet 
+async function sendCleaningDateEmail(cell, oldValue, newValue) {
+  // Check email config
+  if (!EMAIL_CONFIG.user || !EMAIL_CONFIG.pass) {
+    console.log('Email config missing, skipping notification');
+    return;
+  }
+
+  // Create transporter
+  const transporter = nodemailer.createTransport({
+    service: EMAIL_CONFIG.service,
+    auth: {
+      user: EMAIL_CONFIG.user,
+      pass: EMAIL_CONFIG.pass,
+    },
+  });
+
+  // Email content
+  const mailOptions = {
+    from: EMAIL_CONFIG.user,
+    to: EMAIL_CONFIG.recipient,
+    subject: `Cleaning Date Updated - ${cell}`,
+    text: `
+Cleaning Date Modified!
+
+Cell: ${cell}
+Old Value: ${oldValue || '(empty)'}
+New Value: ${newValue}
+Time: ${new Date().toLocaleString()}
+
+This is an automated notification from ClawdBot.
+    `,
+    html: `
+      <h2>🧹 Cleaning Date Modified!</h2>
+      <table border="1" cellpadding="8" cellspacing="0">
+        <tr><td><b>Cell</b></td><td>${cell}</td></tr>
+        <tr><td><b>Old Value</b></td><td>${oldValue || '(empty)'}</td></tr>
+        <tr><td><b>New Value</b></td><td>${newValue}</td></tr>
+        <tr><td><b>Time</b></td><td>${new Date().toLocaleString()}</td></tr>
+      </table>
+      <br>
+      <p><i>This is an automated notification from ClawdBot.</i></p>
+    `,
+  };
+
+  // Send email
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('Email notification sent successfully');
+  } catch (error) {
+    console.error('Email send failed:', error.message);
+  }
+}
+
 
 async function executeWithOptionalAudit({
   command,
@@ -62,20 +199,20 @@ async function executeWithOptionalAudit({
 }) {
   const sheets = getSheetsClient([WRITE_SCOPE]);
 
-  let oldValue = "";
-  let sheetName = "";
+  let oldValue = '';
+  let sheetName = '';
 
   if (range) {
-    sheetName = range.includes("!") ? range.split("!")[0] : "";
+    sheetName = range.includes('!') ? range.split('!')[0] : '';
 
     try {
       const oldRes = await sheets.spreadsheets.values.get({
         spreadsheetId,
         range,
       });
-      oldValue = oldRes.data.values?.[0]?.[0] ?? "";
+      oldValue = oldRes.data.values?.[0]?.[0] ?? '';
     } catch {
-      oldValue = "";
+      oldValue = '';
     }
   }
 
@@ -96,16 +233,16 @@ async function executeWithOptionalAudit({
     return result;
   } else {
     // No change, nothing executed
-    return { skipped: true, reason: "Value unchanged" };
+    return { skipped: true, reason: 'Value unchanged' };
   }
 }
 
 const READ_ONLY_COMMANDS = new Set([
-  "read",
-  "batchGet",
-  "info",
-  "getFormat",
-  "revisions",
+  'read',
+  'batchGet',
+  'info',
+  'getFormat',
+  'revisions',
 ]);
 
 function parseArgs(argv) {
@@ -114,22 +251,22 @@ function parseArgs(argv) {
 
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i];
-    if (!token.startsWith("--")) {
+    if (!token.startsWith('--')) {
       args.push(token);
       continue;
     }
 
     const stripped = token.slice(2);
-    const eqIndex = stripped.indexOf("=");
+    const eqIndex = stripped.indexOf('=');
     if (eqIndex >= 0) {
       const key = stripped.slice(0, eqIndex);
       const value = stripped.slice(eqIndex + 1);
-      flags[key] = value === "" ? true : value;
+      flags[key] = value === '' ? true : value;
       continue;
     }
 
     const next = argv[i + 1];
-    if (next && !next.startsWith("--")) {
+    if (next && !next.startsWith('--')) {
       flags[stripped] = next;
       i += 1;
     } else {
@@ -141,23 +278,18 @@ function parseArgs(argv) {
 }
 
 function readFileJson(filePath) {
-  const raw = fs.readFileSync(filePath, "utf8");
+  const raw = fs.readFileSync(filePath, 'utf8');
   return JSON.parse(raw);
 }
 
 function resolveCredentials() {
-  const inlineJson =
-    process.env.GOOGLE_SHEETS_CREDENTIALS_JSON ||
+  const inlineJson = process.env.GOOGLE_SHEETS_CREDENTIALS_JSON ||
     process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (inlineJson) {
-    return {
-      credentials: JSON.parse(inlineJson),
-      source: "env:GOOGLE_SHEETS_CREDENTIALS_JSON",
-    };
+    return { credentials: JSON.parse(inlineJson), source: 'env:GOOGLE_SHEETS_CREDENTIALS_JSON' };
   }
 
-  const envPath =
-    process.env.GOOGLE_SERVICE_ACCOUNT_KEY ||
+  const envPath = process.env.GOOGLE_SERVICE_ACCOUNT_KEY ||
     process.env.GOOGLE_SHEETS_KEY_FILE ||
     process.env.GOOGLE_APPLICATION_CREDENTIALS;
   if (envPath && fs.existsSync(envPath)) {
@@ -167,10 +299,7 @@ function resolveCredentials() {
   for (const rel of DEFAULT_CRED_FILES) {
     const fullPath = path.isAbsolute(rel) ? rel : path.join(process.cwd(), rel);
     if (fs.existsSync(fullPath)) {
-      return {
-        credentials: readFileJson(fullPath),
-        source: `file:${fullPath}`,
-      };
+      return { credentials: readFileJson(fullPath), source: `file:${fullPath}` };
     }
   }
 
@@ -180,11 +309,9 @@ function resolveCredentials() {
 function requireCredentials() {
   const found = resolveCredentials();
   if (!found) {
-    console.error("No Google Sheets credentials found.");
-    console.error(
-      "Set GOOGLE_SERVICE_ACCOUNT_KEY or GOOGLE_SHEETS_CREDENTIALS_JSON,"
-    );
-    console.error("or place credentials.json in the skill folder.");
+    console.error('No Google Sheets credentials found.');
+    console.error('Set GOOGLE_SERVICE_ACCOUNT_KEY or GOOGLE_SHEETS_CREDENTIALS_JSON,');
+    console.error('or place credentials.json in the skill folder.');
     process.exit(1);
   }
   return found;
@@ -192,14 +319,14 @@ function requireCredentials() {
 
 const CLIENT_CACHE = new Map();
 function getSheetsClient(scopes) {
-  const cacheKey = scopes.join(" ");
+  const cacheKey = scopes.join(' ');
   if (CLIENT_CACHE.has(cacheKey)) {
     return CLIENT_CACHE.get(cacheKey);
   }
 
   const { credentials } = requireCredentials();
   const auth = new google.auth.GoogleAuth({ credentials, scopes });
-  const client = google.sheets({ version: "v4", auth });
+  const client = google.sheets({ version: 'v4', auth });
   CLIENT_CACHE.set(cacheKey, client);
   return client;
 }
@@ -208,7 +335,7 @@ function jsonFromArg(value, label) {
   if (!value) {
     throw new Error(`Missing JSON input for ${label}.`);
   }
-  if (value.startsWith("@")) {
+  if (value.startsWith('@')) {
     const filePath = value.slice(1);
     if (!fs.existsSync(filePath)) {
       throw new Error(`JSON file not found: ${filePath}`);
@@ -231,9 +358,9 @@ function parseA1Range(a1) {
   let sheetName = null;
   let ref = a1;
 
-  if (a1.includes("!")) {
-    const parts = a1.split("!");
-    sheetName = parts[0].replace(/^'+|'+$/g, "");
+  if (a1.includes('!')) {
+    const parts = a1.split('!');
+    sheetName = parts[0].replace(/^'+|'+$/g, '');
     ref = parts[1];
   }
 
@@ -258,9 +385,7 @@ function parseA1Range(a1) {
 
 async function getSheetIdByName(sheets, spreadsheetId, sheetName) {
   const response = await sheets.spreadsheets.get({ spreadsheetId });
-  const entry = response.data.sheets.find(
-    (s) => s.properties?.title === sheetName
-  );
+  const entry = response.data.sheets.find((s) => s.properties?.title === sheetName);
   if (!entry) {
     throw new Error(`Sheet not found: ${sheetName}`);
   }
@@ -271,7 +396,7 @@ async function getDefaultSheetId(sheets, spreadsheetId) {
   const response = await sheets.spreadsheets.get({ spreadsheetId });
   const entry = response.data.sheets[0];
   if (!entry) {
-    throw new Error("Spreadsheet has no sheets.");
+    throw new Error('Spreadsheet has no sheets.');
   }
   return entry.properties.sheetId;
 }
@@ -291,7 +416,7 @@ function buildUserEnteredFormat(options) {
 
   if (options.backgroundColor) {
     userEnteredFormat.backgroundColor = normalizeColor(options.backgroundColor);
-    fields.push("userEnteredFormat.backgroundColor");
+    fields.push('userEnteredFormat.backgroundColor');
   }
 
   if (options.textFormat) {
@@ -300,51 +425,47 @@ function buildUserEnteredFormat(options) {
 
     if (tf.bold !== undefined) {
       userEnteredFormat.textFormat.bold = tf.bold;
-      fields.push("userEnteredFormat.textFormat.bold");
+      fields.push('userEnteredFormat.textFormat.bold');
     }
     if (tf.italic !== undefined) {
       userEnteredFormat.textFormat.italic = tf.italic;
-      fields.push("userEnteredFormat.textFormat.italic");
+      fields.push('userEnteredFormat.textFormat.italic');
     }
     if (tf.underline !== undefined) {
       userEnteredFormat.textFormat.underline = tf.underline;
-      fields.push("userEnteredFormat.textFormat.underline");
+      fields.push('userEnteredFormat.textFormat.underline');
     }
     if (tf.strikethrough !== undefined) {
       userEnteredFormat.textFormat.strikethrough = tf.strikethrough;
-      fields.push("userEnteredFormat.textFormat.strikethrough");
+      fields.push('userEnteredFormat.textFormat.strikethrough');
     }
     if (tf.fontSize !== undefined) {
       userEnteredFormat.textFormat.fontSize = tf.fontSize;
-      fields.push("userEnteredFormat.textFormat.fontSize");
+      fields.push('userEnteredFormat.textFormat.fontSize');
     }
     if (tf.fontFamily) {
       userEnteredFormat.textFormat.fontFamily = tf.fontFamily;
-      fields.push("userEnteredFormat.textFormat.fontFamily");
+      fields.push('userEnteredFormat.textFormat.fontFamily');
     }
     if (tf.foregroundColor) {
-      userEnteredFormat.textFormat.foregroundColor = normalizeColor(
-        tf.foregroundColor
-      );
-      fields.push("userEnteredFormat.textFormat.foregroundColor");
+      userEnteredFormat.textFormat.foregroundColor = normalizeColor(tf.foregroundColor);
+      fields.push('userEnteredFormat.textFormat.foregroundColor');
     }
   }
 
   if (options.horizontalAlignment) {
-    userEnteredFormat.horizontalAlignment =
-      options.horizontalAlignment.toUpperCase();
-    fields.push("userEnteredFormat.horizontalAlignment");
+    userEnteredFormat.horizontalAlignment = options.horizontalAlignment.toUpperCase();
+    fields.push('userEnteredFormat.horizontalAlignment');
   }
 
   if (options.verticalAlignment) {
-    userEnteredFormat.verticalAlignment =
-      options.verticalAlignment.toUpperCase();
-    fields.push("userEnteredFormat.verticalAlignment");
+    userEnteredFormat.verticalAlignment = options.verticalAlignment.toUpperCase();
+    fields.push('userEnteredFormat.verticalAlignment');
   }
 
   if (options.wrapStrategy) {
     userEnteredFormat.wrapStrategy = options.wrapStrategy.toUpperCase();
-    fields.push("userEnteredFormat.wrapStrategy");
+    fields.push('userEnteredFormat.wrapStrategy');
   }
 
   if (options.numberFormat) {
@@ -352,7 +473,7 @@ function buildUserEnteredFormat(options) {
       type: options.numberFormat.type,
       pattern: options.numberFormat.pattern,
     };
-    fields.push("userEnteredFormat.numberFormat");
+    fields.push('userEnteredFormat.numberFormat');
   }
 
   return { userEnteredFormat, fields };
@@ -361,72 +482,7 @@ function buildUserEnteredFormat(options) {
 function toRanges(value) {
   if (!value) return [];
   if (Array.isArray(value)) return value;
-  return value
-    .split(",")
-    .map((range) => range.trim())
-    .filter(Boolean);
-}
-
-/**
- * Updates the "Status" column for a given row in a sheet.
- */
-async function updateStatus(
-  sheets,
-  spreadsheetId,
-  sheetName,
-  rowNumber,
-  statusValue
-) {
-  console.log(`Checking for Status column in ${sheetName}...`);
-
-  // 1️⃣ Get header row
-  const headerRes = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${sheetName}!1:1`,
-  });
-
-  const headerRow = headerRes.data.values?.[0] || [];
-  console.log(`Header row: ${JSON.stringify(headerRow)}`);
-
-  // 2️⃣ Find Status column
-  const statusIndex = headerRow.findIndex(
-    (h) => h?.toLowerCase().trim() === "status"
-  );
-  console.log(`Status column index found: ${statusIndex}`);
-
-  if (statusIndex === -1) {
-    console.log('No "Status" column found. Skipping status update.');
-    return;
-  }
-
-  // 3️⃣ Convert column index to A1 notation correctly
-  const statusColumnLetter = indexToCol(statusIndex);
-  const statusCell = `${sheetName}!${statusColumnLetter}${rowNumber}`;
-  console.log(`Updating status at ${statusCell} to "${statusValue}"`);
-
-  // 4️⃣ Update Status cell
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: statusCell,
-    valueInputOption: "USER_ENTERED",
-    requestBody: {
-      values: [[statusValue]],
-    },
-  });
-  console.log("Status updated successfully.");
-}
-
-/**
- * Converts zero-based column index to A1 notation
- */
-function indexToCol(index) {
-  let col = "";
-  let i = index;
-  while (i >= 0) {
-    col = String.fromCharCode((i % 26) + 65) + col;
-    i = Math.floor(i / 26) - 1;
-  }
-  return col;
+  return value.split(',').map((range) => range.trim()).filter(Boolean);
 }
 
 const HELP_TEXT = `
@@ -442,8 +498,6 @@ Core data commands:
   clear <spreadsheetId> <range>
   batchGet <spreadsheetId> <range1,range2,...>
   batchWrite <spreadsheetId> <jsonOr@file>
-  highlight <spreadsheetId> <range>
-  unhighlight <spreadsheetId> <range>
 
 Formatting and layout:
   format <spreadsheetId> <range> <formatJsonOr@file>
@@ -468,7 +522,7 @@ Advanced:
 `;
 
 function indexToCol(index) {
-  let col = "";
+  let col = '';
   let i = index;
   while (i >= 0) {
     col = String.fromCharCode((i % 26) + 65) + col;
@@ -491,19 +545,14 @@ async function executeWithAuditForBatch({
   let cells = [];
   if (range) {
     try {
-      const oldRes = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range,
-      });
+      const oldRes = await sheets.spreadsheets.values.get({ spreadsheetId, range });
       const oldGrid = parseA1Range(range);
       const values = oldRes.data.values || [];
       values.forEach((row, rIdx) => {
         row.forEach((val, cIdx) => {
-          const cell = `${indexToCol(cIdx + oldGrid.startColumnIndex)}${
-            rIdx + oldGrid.startRowIndex + 1
-          }`;
+          const cell = `${indexToCol(cIdx + oldGrid.startColumnIndex)}${rIdx + oldGrid.startRowIndex + 1}`;
           cells.push(cell);
-          oldValues.push(val ?? "");
+          oldValues.push(val ?? '');
         });
       });
     } catch {
@@ -529,10 +578,9 @@ async function executeWithAuditForBatch({
     const startCol = req.updateCells.range?.startColumnIndex || 0;
     req.updateCells.rows.forEach((row, rIdx) => {
       row.values.forEach((cellObj, cIdx) => {
-        const newVal =
-          cellObj.userEnteredValue?.stringValue ??
-          cellObj.userEnteredValue?.numberValue ??
-          "";
+        const newVal = cellObj.userEnteredValue?.stringValue
+          ?? cellObj.userEnteredValue?.numberValue
+          ?? '';
         newValues.push(newVal);
 
         const cell = `${indexToCol(cIdx + startCol)}${rIdx + startRow + 1}`;
@@ -542,13 +590,13 @@ async function executeWithAuditForBatch({
   });
 
   // Only log if values actually changed
-  const oldStr = oldValues.join(", ");
-  const newStr = newValues.join(", ");
+  const oldStr = oldValues.join(', ');
+  const newStr = newValues.join(', ');
   if (oldStr !== newStr || oldValues.length === 0) {
     await logAudit({
       user: "ASSISTANT",
-      sheet: "", // omit sheet name for batch
-      cell: newCells.join(", "),
+      sheet: '', // omit sheet name for batch
+      cell: newCells.join(', '),
       oldValue: oldStr,
       newValue: newStr,
       source: "SYSTEM",
@@ -558,16 +606,19 @@ async function executeWithAuditForBatch({
   return result;
 }
 
+
 async function main() {
   const { args, flags } = parseArgs(process.argv.slice(2));
   const command = args[0];
 
-  if (!command || command === "help" || command === "--help") {
+  if (!command || command === 'help' || command === '--help') {
     console.log(HELP_TEXT.trim());
     return;
   }
 
-  const scopes = READ_ONLY_COMMANDS.has(command) ? [READ_SCOPE] : [WRITE_SCOPE];
+  const scopes = READ_ONLY_COMMANDS.has(command)
+    ? [READ_SCOPE]
+    : [WRITE_SCOPE];
 
   const sheets = getSheetsClient(scopes);
   const isMutation = !READ_ONLY_COMMANDS.has(command);
@@ -579,11 +630,12 @@ async function main() {
     let newValue = null;
 
     switch (command) {
-      case "read": {
+
+      case 'read': {
         spreadsheetId = args[1];
         range = args[2];
         if (!spreadsheetId || !range)
-          throw new Error("Usage: read <spreadsheetId> <range>");
+          throw new Error('Usage: read <spreadsheetId> <range>');
 
         result = await executeWithOptionalAudit({
           isMutation,
@@ -594,57 +646,40 @@ async function main() {
               range,
               majorDimension: flags.major,
               valueRenderOption: flags.render || flags.valueRenderOption,
-              dateTimeRenderOption: flags.date || flags.dateTimeRenderOption,
+              dateTimeRenderOption:
+                flags.date || flags.dateTimeRenderOption,
             });
-            return flags.full ? response.data : response.data.values || [];
+            return flags.full
+              ? response.data
+              : response.data.values || [];
           },
         });
         break;
       }
 
-      // case 'write': {
-      //   spreadsheetId = args[1];
-      //   range = args[2];
-      //   const dataRaw = args[3];
-
-      //   if (!spreadsheetId || !range || !dataRaw)
-      //     throw new Error('Usage: write <spreadsheetId> <range> <jsonOr@file>');
-
-      //   const values = jsonFromArg(dataRaw, 'values');
-      //   newValue = values?.[0]?.[0];
-
-      //   result = await executeWithOptionalAudit({
-      //     isMutation,
-      //     command,
-      //     spreadsheetId,
-      //     range,
-      //     newValue,
-      //     execute: async () => {
-      //       const response = await sheets.spreadsheets.values.update({
-      //         spreadsheetId,
-      //         range,
-      //         valueInputOption: flags.input || 'USER_ENTERED',
-      //         requestBody: {
-      //           values,
-      //           majorDimension: flags.major,
-      //         },
-      //       });
-      //       return response.data;
-      //     },
-      //   });
-      //   break;
-      // }
-      case "write": {
+      case 'write': {
         spreadsheetId = args[1];
         range = args[2];
         const dataRaw = args[3];
 
         if (!spreadsheetId || !range || !dataRaw)
-          throw new Error("Usage: write <spreadsheetId> <range> <jsonOr@file>");
+          throw new Error('Usage: write <spreadsheetId> <range> <jsonOr@file>');
 
-        const values = jsonFromArg(dataRaw, "values");
+        const values = jsonFromArg(dataRaw, 'values');
         newValue = values?.[0]?.[0];
 
+        // Get old value BEFORE write
+        let oldValue = '';
+        try {
+          const oldRes = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range,
+          });
+          oldValue = oldRes.data.values?.[0]?.[0] ?? '';
+        } catch {
+          oldValue = '';
+        }
+
         result = await executeWithOptionalAudit({
           isMutation,
           command,
@@ -652,247 +687,95 @@ async function main() {
           range,
           newValue,
           execute: async () => {
-            const sheets = getSheetsClient([WRITE_SCOPE]);
-            // 🟢 STEP 1 — READ CURRENT VALUE
-            const existing = await sheets.spreadsheets.values.get({
+            const response = await sheets.spreadsheets.values.update({
               spreadsheetId,
               range,
-            });
-
-            const oldValue = existing.data.values?.[0]?.[0] ?? "";
-
-            const wasEmpty = oldValue === "";
-
-            // 🟢 STEP 2 — WRITE NEW VALUE
-            // const response = await sheets.spreadsheets.values.update({
-            //   spreadsheetId,
-            //   range,
-            //   valueInputOption: flags.input || 'USER_ENTERED',
-            //   requestBody: {
-            //     values,
-            //     majorDimension: flags.major,
-            //   },
-            // });
-            if (oldValue !== newValue) {
-              await sheets.spreadsheets.values.update({
-                spreadsheetId,
-                range,
-                valueInputOption: flags.input || "USER_ENTERED",
-                requestBody: { values, majorDimension: flags.major },
-              });
-            }
-
-            // 🟢 STEP 3 — EXTRACT ROW NUMBER
-            const match = range.match(/!(?:[A-Z]+)(\d+)/);
-            const rowNumber = parseInt(match[1], 10);
-            const sheetName = range.split("!")[0];
-
-            // 🟢 STEP 4 — GET SHEET ID
-            const sheetId = await getSheetIdByName(
-              sheets,
-              spreadsheetId,
-              sheetName
-            );
-
-            // 🟢 STEP 5 — PICK COLOR
-            const color = wasEmpty
-              ? { red: 146 / 255, green: 208 / 255, blue: 80 / 255 } // GREEN
-              : { red: 1, green: 1, blue: 0 }; // YELLOW
-
-            const grid = parseA1Range(range);
-
-            // 🟢 STEP 6 — COLOR FULL ROW
-            await sheets.spreadsheets.batchUpdate({
-              spreadsheetId,
-              requestBody: {
-                requests: [
-                  {
-                    repeatCell: {
-                      range: {
-                        sheetId,
-                        startRowIndex: grid.startRowIndex,
-                        endRowIndex: grid.endRowIndex,
-                      },
-                      cell: {
-                        userEnteredFormat: {
-                          backgroundColor: color,
-                        },
-                      },
-                      fields: "userEnteredFormat.backgroundColor",
-                    },
-                  },
-                ],
-              },
-            });
-
-            //STEP 7 — UPDATE STATUS
-            await updateStatus(
-              sheets,
-              spreadsheetId,
-              sheetName,
-              rowNumber,
-              wasEmpty ? "New" : "Modified"
-            );
-
-            //return response.data;
-            return {
-              oldValue,
-              newValue,
-              rowNumber,
-              status: wasEmpty ? "New" : "Modified",
-            };
-          },
-        });
-
-        break;
-      }
-
-      case "append": {
-        spreadsheetId = args[1];
-        range = args[2];
-        const dataRaw = args[3];
-
-        if (!spreadsheetId || !range || !dataRaw)
-          throw new Error(
-            "Usage: append <spreadsheetId> <range> <jsonOr@file>"
-          );
-
-        const values = jsonFromArg(dataRaw, "values");
-        newValue = JSON.stringify(values);
-
-        // result = await executeWithOptionalAudit({
-        //   isMutation,
-        //   command,
-        //   spreadsheetId,
-        //   range,
-        //   newValue,
-        //   execute: async () => {
-        //     const response = await sheets.spreadsheets.values.append({
-        //       spreadsheetId,
-        //       range,
-        //       valueInputOption: flags.input || 'USER_ENTERED',
-        //       insertDataOption: flags.insert || 'INSERT_ROWS',
-        //       requestBody: {
-        //         values,
-        //         majorDimension: flags.major,
-        //       },
-        //     });
-        //     return response.data;
-        //   },
-        // });
-        result = await executeWithOptionalAudit({
-          isMutation,
-          command,
-          spreadsheetId,
-          range,
-          newValue,
-          execute: async () => {
-            const response = await sheets.spreadsheets.values.append({
-              spreadsheetId,
-              range,
-              valueInputOption: flags.input || "USER_ENTERED",
-              insertDataOption: flags.insert || "INSERT_ROWS",
+              valueInputOption: flags.input || 'USER_ENTERED',
               requestBody: {
                 values,
                 majorDimension: flags.major,
               },
             });
-
-            //GET APPENDED ROW NUMBER
-            const updatedRange = response.data.updates.updatedRange;
-            // Example: Sheet1!A12:C12
-
-            const match = updatedRange.match(/!(?:[A-Z]+)(\d+)/);
-            const rowNumber = parseInt(match[1], 10);
-
-            const sheetName = updatedRange.split("!")[0];
-
-            const grid = parseA1Range(updatedRange);
-
-            //FIND SHEET ID
-            const sheetId = await getSheetIdByName(
-              sheets,
-              spreadsheetId,
-              sheetName
-            );
-
-            //COLOR FULL ROW GREEN
-            await sheets.spreadsheets.batchUpdate({
-              spreadsheetId,
-              requestBody: {
-                requests: [
-                  {
-                    repeatCell: {
-                      range: {
-                        sheetId,
-                        startRowIndex: grid.startRowIndex,
-                        endRowIndex: grid.endRowIndex,
-                      },
-                      cell: {
-                        userEnteredFormat: {
-                          backgroundColor: {
-                            red: 146 / 255.0,
-                            green: 208 / 255.0,
-                            blue: 80 / 255.0,
-                          },
-                        },
-                      },
-                      fields: "userEnteredFormat.backgroundColor",
-                    },
-                  },
-                ],
-              },
-            });
-
-            //UPDATE STATUS
-            await updateStatus(
-              sheets,
-              spreadsheetId,
-              sheetName,
-              rowNumber,
-              "New"
-            );
-
             return response.data;
           },
         });
+
+        // ===== AUTO-FORMAT + EMAIL =====
+        if (spreadsheetId === CLEANING_SPREADSHEET_ID && range) {
+          await formatCleaningDateCell(sheets, spreadsheetId, range, oldValue, newValue);
+        }
+        // ================================
+
         break;
       }
-
-      case "clear": {
+      case 'append': {
         spreadsheetId = args[1];
         range = args[2];
+        const dataRaw = args[3];
 
-        if (!spreadsheetId || !range)
-          throw new Error("Usage: clear <spreadsheetId> <range>");
+        if (!spreadsheetId || !range || !dataRaw)
+          throw new Error('Usage: append <spreadsheetId> <range> <jsonOr@file>');
+
+        const values = jsonFromArg(dataRaw, 'values');
+        newValue = JSON.stringify(values);
 
         result = await executeWithOptionalAudit({
           isMutation,
           command,
           spreadsheetId,
           range,
-          newValue: "",
+          newValue,
           execute: async () => {
-            const response = await sheets.spreadsheets.values.clear({
-              spreadsheetId,
-              range,
-            });
+            const response =
+              await sheets.spreadsheets.values.append({
+                spreadsheetId,
+                range,
+                valueInputOption:
+                  flags.input || 'USER_ENTERED',
+                insertDataOption:
+                  flags.insert || 'INSERT_ROWS',
+                requestBody: {
+                  values,
+                  majorDimension: flags.major,
+                },
+              });
             return response.data;
           },
         });
         break;
       }
 
-      case "batchGet": {
+      case 'clear': {
+        spreadsheetId = args[1];
+        range = args[2];
+
+        if (!spreadsheetId || !range)
+          throw new Error('Usage: clear <spreadsheetId> <range>');
+
+        result = await executeWithOptionalAudit({
+          isMutation,
+          command,
+          spreadsheetId,
+          range,
+          newValue: '',
+          execute: async () => {
+            const response =
+              await sheets.spreadsheets.values.clear({
+                spreadsheetId,
+                range,
+              });
+            return response.data;
+          },
+        });
+        break;
+      }
+
+
+      case 'batchGet': {
         const spreadsheetId = args[1];
         const rangeArgs = args.slice(2);
-        if (!spreadsheetId || rangeArgs.length === 0)
-          throw new Error(
-            "Usage: batchGet <spreadsheetId> <range1,range2,...>"
-          );
-        const ranges = toRanges(
-          rangeArgs.length === 1 ? rangeArgs[0] : rangeArgs.join(",")
-        );
+        if (!spreadsheetId || rangeArgs.length === 0) throw new Error('Usage: batchGet <spreadsheetId> <range1,range2,...>');
+        const ranges = toRanges(rangeArgs.length === 1 ? rangeArgs[0] : rangeArgs.join(','));
         const response = await sheets.spreadsheets.values.batchGet({
           spreadsheetId,
           ranges,
@@ -904,28 +787,23 @@ async function main() {
         break;
       }
 
-      case "batchWrite": {
+      case 'batchWrite': {
         const [, spreadsheetId, dataRaw] = args;
-        if (!spreadsheetId || !dataRaw)
-          throw new Error("Usage: batchWrite <spreadsheetId> <jsonOr@file>");
-        const body = jsonFromArg(dataRaw, "batchUpdate");
+        if (!spreadsheetId || !dataRaw) throw new Error('Usage: batchWrite <spreadsheetId> <jsonOr@file>');
+        const body = jsonFromArg(dataRaw, 'batchUpdate');
 
         result = await executeWithAuditForBatch({
-          command: "batchWrite",
+          command: 'batchWrite',
           spreadsheetId,
           requestsRaw: body,
-          execute: () =>
-            sheets.spreadsheets.values.batchUpdate({
-              spreadsheetId,
-              requestBody: body,
-            }),
+          execute: () => sheets.spreadsheets.values.batchUpdate({ spreadsheetId, requestBody: body }),
         });
         break;
       }
 
-      case "create": {
+      case 'create': {
         const [, title] = args;
-        if (!title) throw new Error("Usage: create <title>");
+        if (!title) throw new Error('Usage: create <title>');
         const response = await sheets.spreadsheets.create({
           requestBody: { properties: { title } },
         });
@@ -933,58 +811,50 @@ async function main() {
         break;
       }
 
-      case "info": {
+      case 'info': {
         const [, spreadsheetId] = args;
-        if (!spreadsheetId) throw new Error("Usage: info <spreadsheetId>");
+        if (!spreadsheetId) throw new Error('Usage: info <spreadsheetId>');
         const response = await sheets.spreadsheets.get({ spreadsheetId });
         result = response.data;
         break;
       }
 
-      case "format": {
+      case 'format': {
         const [, spreadsheetId, range, formatRaw] = args;
-        if (!spreadsheetId || !range || !formatRaw)
-          throw new Error(
-            "Usage: format <spreadsheetId> <range> <formatJsonOr@file>"
-          );
-        const formatOptions = jsonFromArg(formatRaw, "format");
+        if (!spreadsheetId || !range || !formatRaw) throw new Error('Usage: format <spreadsheetId> <range> <formatJsonOr@file>');
+        const formatOptions = jsonFromArg(formatRaw, 'format');
         const grid = parseA1Range(range);
         const sheetId = grid.sheetName
           ? await getSheetIdByName(sheets, spreadsheetId, grid.sheetName)
           : await getDefaultSheetId(sheets, spreadsheetId);
 
-        const { userEnteredFormat, fields } =
-          buildUserEnteredFormat(formatOptions);
-        if (!fields.length) throw new Error("No format fields provided.");
+        const { userEnteredFormat, fields } = buildUserEnteredFormat(formatOptions);
+        if (!fields.length) throw new Error('No format fields provided.');
 
         result = await executeWithAuditForBatch({
-          command: "format",
+          command: 'format',
           spreadsheetId,
           range,
           requestsRaw: formatOptions,
-          execute: () =>
-            sheets.spreadsheets.batchUpdate({
-              spreadsheetId,
-              requestBody: {
-                requests: [
-                  {
-                    repeatCell: {
-                      range: { ...grid, sheetId },
-                      cell: { userEnteredFormat },
-                      fields: fields.join(","),
-                    },
-                  },
-                ],
-              },
-            }),
+          execute: () => sheets.spreadsheets.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+              requests: [{
+                repeatCell: {
+                  range: { ...grid, sheetId },
+                  cell: { userEnteredFormat },
+                  fields: fields.join(','),
+                },
+              }],
+            },
+          }),
         });
         break;
       }
 
-      case "getFormat": {
+      case 'getFormat': {
         const [, spreadsheetId, range] = args;
-        if (!spreadsheetId || !range)
-          throw new Error("Usage: getFormat <spreadsheetId> <range>");
+        if (!spreadsheetId || !range) throw new Error('Usage: getFormat <spreadsheetId> <range>');
         const response = await sheets.spreadsheets.get({
           spreadsheetId,
           ranges: [range],
@@ -994,15 +864,10 @@ async function main() {
         break;
       }
 
-      case "borders": {
+      case 'borders': {
         const [, spreadsheetId, range, styleRaw] = args;
-        if (!spreadsheetId || !range)
-          throw new Error(
-            "Usage: borders <spreadsheetId> <range> [styleJsonOr@file]"
-          );
-        const style = styleRaw
-          ? jsonFromArg(styleRaw, "borderStyle")
-          : { style: "SOLID", color: { red: 0, green: 0, blue: 0 } };
+        if (!spreadsheetId || !range) throw new Error('Usage: borders <spreadsheetId> <range> [styleJsonOr@file]');
+        const style = styleRaw ? jsonFromArg(styleRaw, 'borderStyle') : { style: 'SOLID', color: { red: 0, green: 0, blue: 0 } };
         const grid = parseA1Range(range);
         const sheetId = grid.sheetName
           ? await getSheetIdByName(sheets, spreadsheetId, grid.sheetName)
@@ -1011,48 +876,41 @@ async function main() {
         const response = await sheets.spreadsheets.batchUpdate({
           spreadsheetId,
           requestBody: {
-            requests: [
-              {
-                updateBorders: {
-                  range: { ...grid, sheetId },
-                  top: style,
-                  bottom: style,
-                  left: style,
-                  right: style,
-                  innerHorizontal: style,
-                  innerVertical: style,
-                },
+            requests: [{
+              updateBorders: {
+                range: { ...grid, sheetId },
+                top: style,
+                bottom: style,
+                left: style,
+                right: style,
+                innerHorizontal: style,
+                innerVertical: style,
               },
-            ],
+            }],
           },
         });
         result = { updated: true, replies: response.data.replies };
         break;
       }
 
-      case "batch": {
+      case 'batch': {
         const [, spreadsheetId, requestsRaw] = args;
-        if (!spreadsheetId || !requestsRaw)
-          throw new Error("Usage: batch <spreadsheetId> <requestsJsonOr@file>");
-        const payload = jsonFromArg(requestsRaw, "requests");
-        const requestBody = Array.isArray(payload)
-          ? { requests: payload }
-          : payload;
+        if (!spreadsheetId || !requestsRaw) throw new Error('Usage: batch <spreadsheetId> <requestsJsonOr@file>');
+        const payload = jsonFromArg(requestsRaw, 'requests');
+        const requestBody = Array.isArray(payload) ? { requests: payload } : payload;
 
         result = await executeWithAuditForBatch({
-          command: "batch",
+          command: 'batch',
           spreadsheetId,
           requestsRaw: payload,
-          execute: () =>
-            sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody }),
+          execute: () => sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody }),
         });
         break;
       }
 
-      case "unmerge": {
+      case 'unmerge': {
         const [, spreadsheetId, range] = args;
-        if (!spreadsheetId || !range)
-          throw new Error("Usage: unmerge <spreadsheetId> <range>");
+        if (!spreadsheetId || !range) throw new Error('Usage: unmerge <spreadsheetId> <range>');
         const grid = parseA1Range(range);
         const sheetId = grid.sheetName
           ? await getSheetIdByName(sheets, spreadsheetId, grid.sheetName)
@@ -1061,148 +919,103 @@ async function main() {
         const response = await sheets.spreadsheets.batchUpdate({
           spreadsheetId,
           requestBody: {
-            requests: [
-              {
-                unmergeCells: {
-                  range: { ...grid, sheetId },
-                },
+            requests: [{
+              unmergeCells: {
+                range: { ...grid, sheetId },
               },
-            ],
+            }],
           },
         });
         result = { unmerged: true, replies: response.data.replies };
         break;
       }
 
-      case "resize": {
+      case 'resize': {
         const [, spreadsheetId, sheetName, dimension, start, end, size] = args;
-        if (
-          !spreadsheetId ||
-          !sheetName ||
-          !dimension ||
-          !start ||
-          !end ||
-          !size
-        ) {
-          throw new Error(
-            "Usage: resize <spreadsheetId> <sheetName> <cols|rows> <start> <end> <px>"
-          );
+        if (!spreadsheetId || !sheetName || !dimension || !start || !end || !size) {
+          throw new Error('Usage: resize <spreadsheetId> <sheetName> <cols|rows> <start> <end> <px>');
         }
-        const sheetId = await getSheetIdByName(
-          sheets,
-          spreadsheetId,
-          sheetName
-        );
-        const isCols = dimension === "cols";
+        const sheetId = await getSheetIdByName(sheets, spreadsheetId, sheetName);
+        const isCols = dimension === 'cols';
         const range = isCols
-          ? {
-              dimension: "COLUMNS",
-              startIndex: colToIndex(start),
-              endIndex: colToIndex(end) + 1,
-            }
-          : {
-              dimension: "ROWS",
-              startIndex: parseInt(start, 10) - 1,
-              endIndex: parseInt(end, 10),
-            };
+          ? { dimension: 'COLUMNS', startIndex: colToIndex(start), endIndex: colToIndex(end) + 1 }
+          : { dimension: 'ROWS', startIndex: parseInt(start, 10) - 1, endIndex: parseInt(end, 10) };
 
         const response = await sheets.spreadsheets.batchUpdate({
           spreadsheetId,
           requestBody: {
-            requests: [
-              {
-                updateDimensionProperties: {
-                  range: { sheetId, ...range },
-                  properties: { pixelSize: parseInt(size, 10) },
-                  fields: "pixelSize",
-                },
+            requests: [{
+              updateDimensionProperties: {
+                range: { sheetId, ...range },
+                properties: { pixelSize: parseInt(size, 10) },
+                fields: 'pixelSize',
               },
-            ],
+            }],
           },
         });
         result = { resized: true, replies: response.data.replies };
         break;
       }
 
-      case "autoResize": {
+      case 'autoResize': {
         const [, spreadsheetId, sheetName, startCol, endCol] = args;
         if (!spreadsheetId || !sheetName || !startCol || !endCol) {
-          throw new Error(
-            "Usage: autoResize <spreadsheetId> <sheetName> <startCol> <endCol>"
-          );
+          throw new Error('Usage: autoResize <spreadsheetId> <sheetName> <startCol> <endCol>');
         }
-        const sheetId = await getSheetIdByName(
-          sheets,
-          spreadsheetId,
-          sheetName
-        );
+        const sheetId = await getSheetIdByName(sheets, spreadsheetId, sheetName);
         const response = await sheets.spreadsheets.batchUpdate({
           spreadsheetId,
           requestBody: {
-            requests: [
-              {
-                autoResizeDimensions: {
-                  dimensions: {
-                    sheetId,
-                    dimension: "COLUMNS",
-                    startIndex: colToIndex(startCol),
-                    endIndex: colToIndex(endCol) + 1,
-                  },
+            requests: [{
+              autoResizeDimensions: {
+                dimensions: {
+                  sheetId,
+                  dimension: 'COLUMNS',
+                  startIndex: colToIndex(startCol),
+                  endIndex: colToIndex(endCol) + 1,
                 },
               },
-            ],
+            }],
           },
         });
         result = { autoResized: true, replies: response.data.replies };
         break;
       }
 
-      case "freeze": {
+      case 'freeze': {
         const [, spreadsheetId, sheetName, rowsRaw, colsRaw] = args;
-        if (!spreadsheetId || !sheetName)
-          throw new Error(
-            "Usage: freeze <spreadsheetId> <sheetName> [rows] [cols]"
-          );
-        const sheetId = await getSheetIdByName(
-          sheets,
-          spreadsheetId,
-          sheetName
-        );
-        const frozenRowCount =
-          rowsRaw !== undefined ? parseInt(rowsRaw, 10) : undefined;
-        const frozenColumnCount =
-          colsRaw !== undefined ? parseInt(colsRaw, 10) : undefined;
+        if (!spreadsheetId || !sheetName) throw new Error('Usage: freeze <spreadsheetId> <sheetName> [rows] [cols]');
+        const sheetId = await getSheetIdByName(sheets, spreadsheetId, sheetName);
+        const frozenRowCount = rowsRaw !== undefined ? parseInt(rowsRaw, 10) : undefined;
+        const frozenColumnCount = colsRaw !== undefined ? parseInt(colsRaw, 10) : undefined;
         const gridProperties = {};
         const fields = [];
         if (frozenRowCount !== undefined) {
           gridProperties.frozenRowCount = frozenRowCount;
-          fields.push("gridProperties.frozenRowCount");
+          fields.push('gridProperties.frozenRowCount');
         }
         if (frozenColumnCount !== undefined) {
           gridProperties.frozenColumnCount = frozenColumnCount;
-          fields.push("gridProperties.frozenColumnCount");
+          fields.push('gridProperties.frozenColumnCount');
         }
         const response = await sheets.spreadsheets.batchUpdate({
           spreadsheetId,
           requestBody: {
-            requests: [
-              {
-                updateSheetProperties: {
-                  properties: { sheetId, gridProperties },
-                  fields: fields.join(","),
-                },
+            requests: [{
+              updateSheetProperties: {
+                properties: { sheetId, gridProperties },
+                fields: fields.join(','),
               },
-            ],
+            }],
           },
         });
         result = { frozen: true, replies: response.data.replies };
         break;
       }
 
-      case "addSheet": {
+      case 'addSheet': {
         const [, spreadsheetId, title] = args;
-        if (!spreadsheetId || !title)
-          throw new Error("Usage: addSheet <spreadsheetId> <title>");
+        if (!spreadsheetId || !title) throw new Error('Usage: addSheet <spreadsheetId> <title>');
         const response = await sheets.spreadsheets.batchUpdate({
           spreadsheetId,
           requestBody: { requests: [{ addSheet: { properties: { title } } }] },
@@ -1211,15 +1024,10 @@ async function main() {
         break;
       }
 
-      case "deleteSheet": {
+      case 'deleteSheet': {
         const [, spreadsheetId, sheetName] = args;
-        if (!spreadsheetId || !sheetName)
-          throw new Error("Usage: deleteSheet <spreadsheetId> <sheetName>");
-        const sheetId = await getSheetIdByName(
-          sheets,
-          spreadsheetId,
-          sheetName
-        );
+        if (!spreadsheetId || !sheetName) throw new Error('Usage: deleteSheet <spreadsheetId> <sheetName>');
+        const sheetId = await getSheetIdByName(sheets, spreadsheetId, sheetName);
         const response = await sheets.spreadsheets.batchUpdate({
           spreadsheetId,
           requestBody: { requests: [{ deleteSheet: { sheetId } }] },
@@ -1228,36 +1036,28 @@ async function main() {
         break;
       }
 
-      case "renameSheet": {
+      case 'renameSheet': {
         const [, spreadsheetId, oldName, newName] = args;
-        if (!spreadsheetId || !oldName || !newName)
-          throw new Error(
-            "Usage: renameSheet <spreadsheetId> <oldName> <newName>"
-          );
+        if (!spreadsheetId || !oldName || !newName) throw new Error('Usage: renameSheet <spreadsheetId> <oldName> <newName>');
         const sheetId = await getSheetIdByName(sheets, spreadsheetId, oldName);
         const response = await sheets.spreadsheets.batchUpdate({
           spreadsheetId,
           requestBody: {
-            requests: [
-              {
-                updateSheetProperties: {
-                  properties: { sheetId, title: newName },
-                  fields: "title",
-                },
+            requests: [{
+              updateSheetProperties: {
+                properties: { sheetId, title: newName },
+                fields: 'title',
               },
-            ],
+            }],
           },
         });
         result = response.data;
         break;
       }
 
-      case "copyFormat": {
+      case 'copyFormat': {
         const [, spreadsheetId, sourceRange, destRange] = args;
-        if (!spreadsheetId || !sourceRange || !destRange)
-          throw new Error(
-            "Usage: copyFormat <spreadsheetId> <sourceRange> <destRange>"
-          );
+        if (!spreadsheetId || !sourceRange || !destRange) throw new Error('Usage: copyFormat <spreadsheetId> <sourceRange> <destRange>');
         const sourceGrid = parseA1Range(sourceRange);
         const destGrid = parseA1Range(destRange);
         const sourceSheetId = sourceGrid.sheetName
@@ -1270,180 +1070,29 @@ async function main() {
         const response = await sheets.spreadsheets.batchUpdate({
           spreadsheetId,
           requestBody: {
-            requests: [
-              {
-                copyPaste: {
-                  source: { ...sourceGrid, sheetId: sourceSheetId },
-                  destination: { ...destGrid, sheetId: destSheetId },
-                  pasteType: "PASTE_FORMAT",
-                },
+            requests: [{
+              copyPaste: {
+                source: { ...sourceGrid, sheetId: sourceSheetId },
+                destination: { ...destGrid, sheetId: destSheetId },
+                pasteType: 'PASTE_FORMAT',
               },
-            ],
+            }],
           },
         });
         result = { copied: true, replies: response.data.replies };
         break;
       }
 
-      case "batch": {
+      case 'batch': {
         const [, spreadsheetId, requestsRaw] = args;
-        if (!spreadsheetId || !requestsRaw)
-          throw new Error("Usage: batch <spreadsheetId> <requestsJsonOr@file>");
-        const payload = jsonFromArg(requestsRaw, "requests");
-        const requestBody = Array.isArray(payload)
-          ? { requests: payload }
-          : payload;
+        if (!spreadsheetId || !requestsRaw) throw new Error('Usage: batch <spreadsheetId> <requestsJsonOr@file>');
+        const payload = jsonFromArg(requestsRaw, 'requests');
+        const requestBody = Array.isArray(payload) ? { requests: payload } : payload;
         const response = await sheets.spreadsheets.batchUpdate({
           spreadsheetId,
           requestBody,
         });
         result = response.data;
-        break;
-      }
-
-      case "highlight": {
-        spreadsheetId = args[1];
-        range = args[2];
-
-        if (!spreadsheetId || !range)
-          throw new Error("Usage: highlight <spreadsheetId> <range>");
-
-        result = await executeWithOptionalAudit({
-          command,
-          spreadsheetId,
-          range,
-          newValue: "Unavailable",
-          execute: async () => {
-            const sheets = getSheetsClient([WRITE_SCOPE]);
-
-            const grid = parseA1Range(range);
-            const sheetName = grid.sheetName;
-            const sheetId = await getSheetIdByName(
-              sheets,
-              spreadsheetId,
-              sheetName
-            );
-
-            const rowNumber = grid.startRowIndex + 1;
-
-            // 🔴 COLOR FULL ROW RED
-            await sheets.spreadsheets.batchUpdate({
-              spreadsheetId,
-              requestBody: {
-                requests: [
-                  {
-                    repeatCell: {
-                      range: {
-                        sheetId,
-                        startRowIndex: grid.startRowIndex,
-                        endRowIndex: grid.endRowIndex,
-                      },
-                      cell: {
-                        userEnteredFormat: {
-                          backgroundColor: {
-                            red: 1,
-                            green: 0,
-                            blue: 0,
-                          },
-                        },
-                      },
-                      fields: "userEnteredFormat.backgroundColor",
-                    },
-                  },
-                ],
-              },
-            });
-
-            // 🔁 UPDATE STATUS
-            await updateStatus(
-              sheets,
-              spreadsheetId,
-              sheetName,
-              rowNumber,
-              "Unavailable"
-            );
-
-            return {
-              rowNumber,
-              status: "Unavailable",
-              highlighted: true,
-            };
-          },
-        });
-
-        break;
-      }
-
-      case "unhighlight": {
-        spreadsheetId = args[1];
-        range = args[2];
-
-        if (!spreadsheetId || !range)
-          throw new Error("Usage: unhighlight <spreadsheetId> <range>");
-
-        result = await executeWithOptionalAudit({
-          command,
-          spreadsheetId,
-          range,
-          newValue: "N/A",
-          execute: async () => {
-            const sheets = getSheetsClient([WRITE_SCOPE]);
-
-            const grid = parseA1Range(range);
-            const sheetName = grid.sheetName;
-            const sheetId = await getSheetIdByName(
-              sheets,
-              spreadsheetId,
-              sheetName
-            );
-
-            const rowNumber = grid.startRowIndex + 1;
-
-            // ⚪ COLOR FULL ROW WHITE
-            await sheets.spreadsheets.batchUpdate({
-              spreadsheetId,
-              requestBody: {
-                requests: [
-                  {
-                    repeatCell: {
-                      range: {
-                        sheetId,
-                        startRowIndex: grid.startRowIndex,
-                        endRowIndex: grid.endRowIndex,
-                      },
-                      cell: {
-                        userEnteredFormat: {
-                          backgroundColor: {
-                            red: 1,
-                            green: 1,
-                            blue: 1,
-                          },
-                        },
-                      },
-                      fields: "userEnteredFormat.backgroundColor",
-                    },
-                  },
-                ],
-              },
-            });
-
-            // 🔁 UPDATE STATUS
-            await updateStatus(
-              sheets,
-              spreadsheetId,
-              sheetName,
-              rowNumber,
-              "N/A"
-            );
-
-            return {
-              rowNumber,
-              status: "N/A",
-              unhighlighted: true,
-            };
-          },
-        });
-
         break;
       }
 
@@ -1453,7 +1102,7 @@ async function main() {
 
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {
-    console.error("Error:", error.message);
+    console.error('Error:', error.message);
     if (error.response?.data?.error) {
       console.error(JSON.stringify(error.response.data.error, null, 2));
     }
