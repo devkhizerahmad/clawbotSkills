@@ -35,9 +35,9 @@ const CLEANING_DATE_COLOR = {
 // ===== EMAIL CONFIGURATION =====
 const EMAIL_CONFIG = {
   service: "gmail", // or 'outlook', 'yahoo'
-  user: process.env.EMAIL_USER, // your-email@gmail.com
-  pass: process.env.EMAIL_PASS, // app password
-  recipient: process.env.EMAIL_RECIPIENT || "recipient@example.com",
+  user: EMAIL_USER, // your-email@gmail.com
+  pass: EMAIL_PASS, // app password
+  recipient: EMAIL_RECIPIENT,
 };
 
 const formatTimestamp = (ts) => {
