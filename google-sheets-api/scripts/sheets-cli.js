@@ -4,6 +4,7 @@
 const { google } = require("googleapis");
 const fs = require("fs");
 const path = require("path");
+const nodemailer = require("nodemailer");
 
 const READ_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
 const WRITE_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
@@ -17,6 +18,27 @@ const DEFAULT_CRED_FILES = [
 
 const AUDIT_SPREADSHEET_ID = "1x7Ch_AOuLk6Zht2ef0Q--2K_QueKvcAft-P6d0sx76A";
 const AUDIT_SHEET_NAME = "Audit_Log";
+
+const EMAIL_USER = "devkhizerahmad@gmail.com";
+const EMAIL_PASS = "aief unbt nkfa smrj";
+const EMAIL_RECIPIENT = "devkhizerahmad@gmail.com";
+
+const CLEANING_SPREADSHEET_ID = "1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU";
+const CLEANING_SHEET_NAME = "Cleaning";
+const CLEANING_DATE_COLUMN = "W";
+const CLEANING_DATE_COLOR = {
+  red: 202 / 255,
+  green: 237 / 255,
+  blue: 251 / 255,
+}; // #caedfb
+
+// ===== EMAIL CONFIGURATION =====
+const EMAIL_CONFIG = {
+  service: "gmail", // or 'outlook', 'yahoo'
+  user: process.env.EMAIL_USER, // your-email@gmail.com
+  pass: process.env.EMAIL_PASS, // app password
+  recipient: process.env.EMAIL_RECIPIENT || "recipient@example.com",
+};
 
 const formatTimestamp = (ts) => {
   const [date, time] = ts.split(".")[0].split("T");
@@ -467,14 +489,167 @@ Advanced:
   batch <spreadsheetId> <requestsJsonOr@file>
 `;
 
-function indexToCol(index) {
-  let col = "";
-  let i = index;
-  while (i >= 0) {
-    col = String.fromCharCode((i % 26) + 65) + col;
-    i = Math.floor(i / 26) - 1;
+//function for modified teh color to blue on change the date column W to visually indicate the last cleaning date
+async function formatCleaningDateCell(
+  sheets,
+  spreadsheetId,
+  cell,
+  oldValue,
+  newValue
+) {
+  // Check: Correct spreadsheet, correct sheet, correct column
+  if (spreadsheetId !== CLEANING_SPREADSHEET_ID) return;
+
+  // Parse cell to get sheet name and column
+  const parts = cell.split("!");
+  if (parts.length < 2) return;
+
+  const sheetName = parts[0];
+  const cellRef = parts[1];
+
+  // Check: Sheet must be "Cleaning"
+  if (sheetName !== CLEANING_SHEET_NAME) return;
+
+  // Check: Column must be "W"
+  const columnMatch = cellRef.match(/^([A-Za-z]+)/);
+  if (!columnMatch || columnMatch[1].toUpperCase() !== CLEANING_DATE_COLUMN)
+    return;
+
+  // Get row number
+  const rowMatch = cellRef.match(/(\d+)/);
+  if (!rowMatch) return;
+  const rowNumber = parseInt(rowMatch[1]);
+
+  // Get sheet ID
+  const sheetId = await getSheetIdByName(
+    sheets,
+    spreadsheetId,
+    CLEANING_SHEET_NAME
+  );
+
+  // Apply color to W column cell only
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          repeatCell: {
+            range: {
+              sheetId,
+              startRowIndex: rowNumber - 1,
+              endRowIndex: rowNumber,
+              startColumnIndex: 22,
+              endColumnIndex: 23,
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: CLEANING_DATE_COLOR,
+              },
+            },
+            fields: "userEnteredFormat.backgroundColor",
+          },
+        },
+      ],
+    },
+  });
+
+  // ===== GET CONTACT EMAIL FROM ROW =====
+  let contactEmail = EMAIL_RECIPIENT; // Default fallback
+
+  try {
+    // Find Contact column index
+    const headerRes = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${CLEANING_SHEET_NAME}!1:1`,
+    });
+
+    const headerRow = headerRes.data.values?.[0] || [];
+    const contactIndex = headerRow.findIndex(
+      (h) => h?.toLowerCase().trim() === "contact"
+    );
+
+    if (contactIndex !== -1) {
+      // Get contact value from the row
+      const contactColLetter = indexToCol(contactIndex);
+      const contactRes = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `${CLEANING_SHEET_NAME}!${contactColLetter}${rowNumber}`,
+      });
+
+      contactEmail = contactRes.data.values?.[0]?.[0] || EMAIL_RECIPIENT;
+      console.log(`Contact email found: ${contactEmail}`);
+    }
+  } catch (error) {
+    console.log(`Could not fetch contact email: ${error.message}`);
   }
-  return col;
+  // ======================================
+
+  // ===== SEND EMAIL NOTIFICATION =====
+  await sendCleaningDateEmail(cell, oldValue, newValue, contactEmail);
+  // ===================================
+}
+//email function to send email notification on cleaning date modification in cleaning sheet
+async function sendCleaningDateEmail(cell, oldValue, newValue, recipientEmail) {
+  // Use provided recipient or default
+  const emailTo = recipientEmail || EMAIL_RECIPIENT;
+
+  // Check email config
+  if (!EMAIL_CONFIG.user || !EMAIL_CONFIG.pass) {
+    console.log("Email config missing, skipping notification");
+    return;
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(emailTo)) {
+    console.log(`Invalid email address: ${emailTo}, skipping notification`);
+    return;
+  }
+
+  // Create transporter
+  const transporter = nodemailer.createTransport({
+    service: EMAIL_CONFIG.service,
+    auth: {
+      user: EMAIL_CONFIG.user,
+      pass: EMAIL_CONFIG.pass,
+    },
+  });
+
+  // Email content
+  const mailOptions = {
+    from: EMAIL_CONFIG.user,
+    to: emailTo,
+    subject: `Cleaning Date Updated - ${cell}`,
+    text: `
+Cleaning Date Modified!
+
+Cell: ${cell}
+Old Value: ${oldValue || "(empty)"}
+New Value: ${newValue}
+Time: ${new Date().toLocaleString()}
+
+This is an automated notification from ClawdBot.
+    `,
+    html: `
+      <h2>🧹 Cleaning Date Modified!</h2>
+      <table border="1" cellpadding="8" cellspacing="0">
+        <tr><td><b>Cell</b></td><td>${cell}</td></tr>
+        <tr><td><b>Old Value</b></td><td>${oldValue || "(empty)"}</td></tr>
+        <tr><td><b>New Value</b></td><td>${newValue}</td></tr>
+        <tr><td><b>Time</b></td><td>${new Date().toLocaleString()}</td></tr>
+      </table>
+      <br>
+      <p><i>This is an automated notification from ClawdBot.</i></p>
+    `,
+  };
+
+  // Send email
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Email notification sent successfully to: ${emailTo}`);
+  } catch (error) {
+    console.error("Email send failed:", error.message);
+  }
 }
 
 async function executeWithAuditForBatch({
@@ -602,38 +777,6 @@ async function main() {
         break;
       }
 
-      // case 'write': {
-      //   spreadsheetId = args[1];
-      //   range = args[2];
-      //   const dataRaw = args[3];
-
-      //   if (!spreadsheetId || !range || !dataRaw)
-      //     throw new Error('Usage: write <spreadsheetId> <range> <jsonOr@file>');
-
-      //   const values = jsonFromArg(dataRaw, 'values');
-      //   newValue = values?.[0]?.[0];
-
-      //   result = await executeWithOptionalAudit({
-      //     isMutation,
-      //     command,
-      //     spreadsheetId,
-      //     range,
-      //     newValue,
-      //     execute: async () => {
-      //       const response = await sheets.spreadsheets.values.update({
-      //         spreadsheetId,
-      //         range,
-      //         valueInputOption: flags.input || 'USER_ENTERED',
-      //         requestBody: {
-      //           values,
-      //           majorDimension: flags.major,
-      //         },
-      //       });
-      //       return response.data;
-      //     },
-      //   });
-      //   break;
-      // }
       case "write": {
         spreadsheetId = args[1];
         range = args[2];
@@ -644,6 +787,17 @@ async function main() {
 
         const values = jsonFromArg(dataRaw, "values");
         newValue = values?.[0]?.[0];
+
+        let oldValue_ = "";
+        try {
+          const oldRes = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range,
+          });
+          oldValue_ = oldRes.data.values?.[0]?.[0] ?? "";
+        } catch {
+          oldValue_ = "";
+        }
 
         result = await executeWithOptionalAudit({
           isMutation,
@@ -663,16 +817,6 @@ async function main() {
 
             const wasEmpty = oldValue === "";
 
-            // 🟢 STEP 2 — WRITE NEW VALUE
-            // const response = await sheets.spreadsheets.values.update({
-            //   spreadsheetId,
-            //   range,
-            //   valueInputOption: flags.input || 'USER_ENTERED',
-            //   requestBody: {
-            //     values,
-            //     majorDimension: flags.major,
-            //   },
-            // });
             if (oldValue !== newValue) {
               await sheets.spreadsheets.values.update({
                 spreadsheetId,
@@ -744,6 +888,16 @@ async function main() {
           },
         });
 
+        if (spreadsheetId === CLEANING_SPREADSHEET_ID && range) {
+          await formatCleaningDateCell(
+            sheets,
+            spreadsheetId,
+            range,
+            oldValue_,
+            newValue
+          );
+        }
+
         break;
       }
 
@@ -760,26 +914,6 @@ async function main() {
         const values = jsonFromArg(dataRaw, "values");
         newValue = JSON.stringify(values);
 
-        // result = await executeWithOptionalAudit({
-        //   isMutation,
-        //   command,
-        //   spreadsheetId,
-        //   range,
-        //   newValue,
-        //   execute: async () => {
-        //     const response = await sheets.spreadsheets.values.append({
-        //       spreadsheetId,
-        //       range,
-        //       valueInputOption: flags.input || 'USER_ENTERED',
-        //       insertDataOption: flags.insert || 'INSERT_ROWS',
-        //       requestBody: {
-        //         values,
-        //         majorDimension: flags.major,
-        //       },
-        //     });
-        //     return response.data;
-        //   },
-        // });
         result = await executeWithOptionalAudit({
           isMutation,
           command,
@@ -1030,24 +1164,24 @@ async function main() {
         break;
       }
 
-      case "batch": {
-        const [, spreadsheetId, requestsRaw] = args;
-        if (!spreadsheetId || !requestsRaw)
-          throw new Error("Usage: batch <spreadsheetId> <requestsJsonOr@file>");
-        const payload = jsonFromArg(requestsRaw, "requests");
-        const requestBody = Array.isArray(payload)
-          ? { requests: payload }
-          : payload;
+      // case "batch": {
+      //   const [, spreadsheetId, requestsRaw] = args;
+      //   if (!spreadsheetId || !requestsRaw)
+      //     throw new Error("Usage: batch <spreadsheetId> <requestsJsonOr@file>");
+      //   const payload = jsonFromArg(requestsRaw, "requests");
+      //   const requestBody = Array.isArray(payload)
+      //     ? { requests: payload }
+      //     : payload;
 
-        result = await executeWithAuditForBatch({
-          command: "batch",
-          spreadsheetId,
-          requestsRaw: payload,
-          execute: () =>
-            sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody }),
-        });
-        break;
-      }
+      //   result = await executeWithAuditForBatch({
+      //     command: "batch",
+      //     spreadsheetId,
+      //     requestsRaw: payload,
+      //     execute: () =>
+      //       sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody }),
+      //   });
+      //   break;
+      // }
 
       case "unmerge": {
         const [, spreadsheetId, range] = args;

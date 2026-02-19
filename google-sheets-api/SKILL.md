@@ -59,6 +59,10 @@ Supported sources (first match wins):
 - `./service-account.json`, `./credentials.json`, `./google-service-account.json`
 - `~/.config/google-sheets/credentials.json`
 
+## Input Rules
+
+- If cleaning sheet is being edited and you have been asked to update the cleaning date, make sure to update the cleaning date column (Column W) in the Cleaning sheet.
+
 ## Input conventions
 
 - JSON values can be inline or loaded from file using `@path`.
@@ -155,6 +159,12 @@ node scripts/sheets-cli.js read 1x7Ch_AOuLk6Zht2ef0Q--2K_QueKvcAft-P6d0sx76A "Au
 # Get last 100 entries
 node scripts/sheets-cli.js read 1x7Ch_AOuLk6Zht2ef0Q--2K_QueKvcAft-P6d0sx76A "Audit_Log!A1:G100"
 ```
+
+**Gmail App Password Setup:**
+
+1. Google Account → Security → 2-Step Verification (enable)
+2. App Passwords → Generate new password
+3. Use the 16-character password in `EMAIL_PASS`
 
 ### Example Audit Log Entries
 
