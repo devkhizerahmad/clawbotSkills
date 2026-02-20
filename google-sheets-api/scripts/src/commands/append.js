@@ -34,6 +34,7 @@ async function append({ sheets, args, flags, command, isMutation }) {
     range,
     newValue,
     execute: async () => {
+      console.log(`Appending data to ${spreadsheetId}, range ${range}...`);
       const response = await sheets.spreadsheets.values.append({
         spreadsheetId,
         range,
@@ -45,44 +46,54 @@ async function append({ sheets, args, flags, command, isMutation }) {
         },
       });
 
+      console.log('Data appended successfully.');
+
       //GET APPENDED ROW NUMBER
       const updatedRange = response.data.updates.updatedRange;
+      console.log(`Updated range: ${updatedRange}`);
+
       const match = updatedRange.match(/!(?:[A-Z]+)(\d+)/);
       const rowNumber = parseInt(match[1], 10);
-      const sheetName = updatedRange.split('!')[0];
+      const sheetName = updatedRange.split('!')[0].trim();
+      console.log(`Sheet name: ${sheetName}`);
       const grid = parseA1Range(updatedRange);
 
       const sheetId = await getSheetIdByName(sheets, spreadsheetId, sheetName);
+      console.log(`Sheet ID: ${sheetId}`);
 
-      //COLOR FULL ROW GREEN
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          requests: [
-            {
-              repeatCell: {
-                range: {
-                  sheetId,
-                  startRowIndex: grid.startRowIndex,
-                  endRowIndex: grid.endRowIndex,
-                },
-                cell: {
-                  userEnteredFormat: {
-                    backgroundColor: {
-                      red: 146 / 255.0,
-                      green: 208 / 255.0,
-                      blue: 80 / 255.0,
+      if (sheetName.toLowerCase() === 'inventory') {
+        console.log(`Applying inventory formatting to row ${rowNumber}...`);
+        // ... (rest of the block)
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [
+              {
+                repeatCell: {
+                  range: {
+                    sheetId,
+                    startRowIndex: grid.startRowIndex,
+                    endRowIndex: grid.endRowIndex,
+                  },
+                  cell: {
+                    userEnteredFormat: {
+                      backgroundColor: {
+                        red: 146 / 255.0,
+                        green: 208 / 255.0,
+                        blue: 80 / 255.0,
+                      },
                     },
                   },
+                  fields: 'userEnteredFormat.backgroundColor',
                 },
-                fields: 'userEnteredFormat.backgroundColor',
               },
-            },
-          ],
-        },
-      });
+            ],
+          },
+        });
 
-      await updateStatus(sheets, spreadsheetId, sheetName, rowNumber, 'New');
+        await updateStatus(sheets, spreadsheetId, sheetName, rowNumber, 'New');
+        console.log('Inventory status updated.');
+      }
 
       return response.data;
     },
