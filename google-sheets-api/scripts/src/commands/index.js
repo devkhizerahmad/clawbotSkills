@@ -23,6 +23,7 @@ const { addSheet } = require('./addSheet');
 const { deleteSheet } = require('./deleteSheet');
 const { renameSheet } = require('./renameSheet');
 const { batch } = require('./batch');
+const { allUpdatesCleaning } = require('./allUpdatesCleaning');
 
 module.exports = {
   read,
@@ -48,4 +49,5 @@ module.exports = {
   deleteSheet,
   renameSheet,
   batch,
+  allUpdatesCleaning,
 };
