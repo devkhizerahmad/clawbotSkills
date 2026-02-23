@@ -31,7 +31,7 @@ async function formatCleaningDateCell(
   // Check: Sheet must be "Cleaning"
   if (sheetName !== CLEANING_SHEET_NAME) return;
 
-  // Check: Column must be "W"
+  // Check: Column must be "X"
   const columnMatch = cellRef.match(/^([A-Za-z]+)/);
   if (!columnMatch || columnMatch[1].toUpperCase() !== CLEANING_DATE_COLUMN)
     return;
@@ -40,6 +40,13 @@ async function formatCleaningDateCell(
   const rowMatch = cellRef.match(/(\d+)/);
   if (!rowMatch) return;
   const rowNumber = parseInt(rowMatch[1]);
+  
+  console.log("Formatter called");
+  console.log("Incoming spreadsheetId:", spreadsheetId);
+  console.log("Expected spreadsheetId:", CLEANING_SPREADSHEET_ID);
+  console.log("Processing cell:", cell);
+  console.log("Row number:", rowNumber);
+  console.log("Column:", columnMatch[1].toUpperCase());
 
   // Get sheet ID
   const sheetId = await getSheetIdByName(
@@ -48,8 +55,8 @@ async function formatCleaningDateCell(
     CLEANING_SHEET_NAME,
   );
 
-  // Apply color to W column cell only
-  // 'W' is the 23rd letter, so index 22
+  // Apply color to X column cell only
+  // 'X' is the 24th letter, so index 23
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
     requestBody: {
@@ -60,8 +67,8 @@ async function formatCleaningDateCell(
               sheetId,
               startRowIndex: rowNumber - 1,
               endRowIndex: rowNumber,
-              startColumnIndex: 22, // W is index 22
-              endColumnIndex: 23,
+              startColumnIndex: 23, // X is index 23
+              endColumnIndex: 24, // End at index 24 (exclusive)
             },
             cell: {
               userEnteredFormat: {
@@ -79,6 +86,8 @@ async function formatCleaningDateCell(
   let contactEmail = EMAIL_CONFIG.recipient; // Default fallback
 
   try {
+    console.log(`Looking for contact email in row ${rowNumber}`);
+    
     // Find Contact column index
     const headerRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
@@ -86,13 +95,19 @@ async function formatCleaningDateCell(
     });
 
     const headerRow = headerRes.data.values?.[0] || [];
+    console.log("Header row:", headerRow);
+    
     const contactIndex = headerRow.findIndex(
-      (h) => h?.toLowerCase().trim() === 'contact',
+      (h) => h?.toLowerCase().includes('contacts') && !h?.toLowerCase().includes('room'),
     );
+    
+    console.log("Contact column index:", contactIndex);
 
     if (contactIndex !== -1) {
       // Get contact value from the row
       const contactColLetter = indexToCol(contactIndex);
+      console.log(`Fetching contact from column ${contactColLetter}, row ${rowNumber}`);
+      
       const contactRes = await sheets.spreadsheets.values.get({
         spreadsheetId,
         range: `${CLEANING_SHEET_NAME}!${contactColLetter}${rowNumber}`,
@@ -100,6 +115,8 @@ async function formatCleaningDateCell(
 
       contactEmail = contactRes.data.values?.[0]?.[0] || EMAIL_CONFIG.recipient;
       console.log(`Contact email found: ${contactEmail}`);
+    } else {
+      console.log("Contact column not found in header");
     }
   } catch (error) {
     console.log(`Could not fetch contact email: ${error.message}`);

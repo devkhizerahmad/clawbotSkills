@@ -24,7 +24,7 @@ const EMAIL_RECIPIENT = 'devkhizerahmad@gmail.com';
 
 const CLEANING_SPREADSHEET_ID = '1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU';
 const CLEANING_SHEET_NAME = 'Cleaning';
-const CLEANING_DATE_COLUMN = 'W';
+const CLEANING_DATE_COLUMN = 'X';
 const CLEANING_DATE_COLOR = {
   red: 202 / 255,
   green: 237 / 255,
@@ -83,6 +83,9 @@ const HELP_TEXT = `
   
   Advanced:
     batch <spreadsheetId> <requestsJsonOr@file>
+  
+  Date operations:
+    allUpdatesCleaning <spreadsheetId> <add|subtract> <amount> <days|weeks|months|years>
   `;
 
 module.exports = {
