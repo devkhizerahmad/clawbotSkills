@@ -23,6 +23,8 @@ const { addSheet } = require('./addSheet');
 const { deleteSheet } = require('./deleteSheet');
 const { renameSheet } = require('./renameSheet');
 const { batch } = require('./batch');
+const { lease } = require('./lease');
+const { addApartment } = require('./addApartment');
 
 module.exports = {
   read,
@@ -48,4 +50,6 @@ module.exports = {
   deleteSheet,
   renameSheet,
   batch,
+  lease,
+  'Add apartment': addApartment,
 };

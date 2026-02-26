@@ -6,7 +6,7 @@ const {
   READ_ONLY_COMMANDS,
   HELP_TEXT,
 } = require('./config');
-const { getSheetsClient } = require('./auth');
+const { getSheetsClient, DRIVE_READ_SCOPE } = require('./auth');
 const { parseArgs } = require('./utils/parseArgs');
 const commands = require('./commands/index');
 
@@ -26,6 +26,9 @@ async function main() {
   }
 
   const scopes = READ_ONLY_COMMANDS.has(command) ? [READ_SCOPE] : [WRITE_SCOPE];
+  if (command === 'add-apartment') {
+    scopes.push(DRIVE_READ_SCOPE);
+  }
   const sheets = getSheetsClient(scopes);
   const isMutation = !READ_ONLY_COMMANDS.has(command);
 

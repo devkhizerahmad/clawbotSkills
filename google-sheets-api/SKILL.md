@@ -62,6 +62,12 @@ Supported sources (first match wins):
 ## Input Rules
 
 - If cleaning sheet is being edited and you have been asked to update the cleaning date, make sure to update the cleaning date column (Column W) in the Cleaning sheet.
+- **Syncing Apartments**: If the user asks to "Add apartment [apartment name]" or sync apartment data, use the `node scripts/sheets-cli.js Add apartment "[apartment name]"` command. This command automatically:
+  1. Fetches data and room links from Google Drive.
+  2. Updates the `Unit_Availability_Details` table in the Inventory sheet (preserving existing row data).
+  3. Updates the `Inventory Data` and `Rent Tracker` sheets.
+  4. Applies necessary formatting and borders.
+  5. Skips the `Cleaning` sheet.
 
 ## Input conventions
 
@@ -82,7 +88,8 @@ Example `data.json`:
 Data:
 
 - `read`, `write`, `append`, `clear`, `batchGet`, `batchWrite`
-- `highlight`, `unhighlight`
+- `highlight`, `unhighlight`, `Add apartment`
+- `lease`
 
 Formatting:
 
