@@ -5,12 +5,14 @@
   "main": "scripts/sheets-cli.js",
   "scripts": {
     "sheets": "node scripts/sheets-cli.js",
-    "help": "node scripts/sheets-cli.js help"
+    "help": "node scripts/sheets-cli.js help",
+    "webhook": "node scripts/webhook-server.js"
   },
   "dependencies": {
     "dotenv": "^17.3.1",
     "googleapis": "^140.0.0",
     "nodemailer": "^8.0.1",
-    "jspdf": "^2.5.1"
+    "jspdf": "^2.5.1",
+    "express": "^4.18.2"
   }
 }

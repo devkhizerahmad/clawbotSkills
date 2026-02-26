@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-'use strict';
+"use strict";
 
-const { main } = require('./src/index');
+const { main } = require("./src/index");
 
 if (require.main === module) {
   main();

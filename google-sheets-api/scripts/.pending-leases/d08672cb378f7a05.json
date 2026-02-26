@@ -1,0 +1,14 @@
+{
+  "leaseId": "d08672cb378f7a05",
+  "tenantName": "John Doe",
+  "apartment": "123 Main St",
+  "room": "1",
+  "startDate": "01/15/2026",
+  "endDate": "07/15/2026",
+  "amount": "1200",
+  "prorate": "800",
+  "contact": "5551234567",
+  "email": "john@example.com",
+  "spreadsheetId": "1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU",
+  "createdAt": "2026-02-26T09:32:51.672Z"
+}

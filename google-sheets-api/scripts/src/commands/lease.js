@@ -1,30 +1,34 @@
-'use strict';
+"use strict";
 
-const { logAudit } = require('../services/audit/logAudit');
+const { logAudit } = require("../services/audit/logAudit");
 const {
   generateAgreementPdf,
-} = require('../services/generateAgreement/generateAgreement');
-const { sendAgreementEmail } = require('../services/email/sendAgreementEmail');
-const { INVENTORY_SPREADSHEET_ID } = require('../config');
+} = require("../services/generateAgreement/generateAgreement");
+const { sendAgreementEmail } = require("../services/email/sendAgreementEmail");
+const { agreementSigned } = require("../services/sheets/agreementSigned");
+const { INVENTORY_SPREADSHEET_ID, WEBHOOK_CONFIG } = require("../config");
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
 
 async function lease({ sheets, args, flags, command }) {
   const commandArgs = args.slice(1);
   let spreadsheetId = INVENTORY_SPREADSHEET_ID;
-  let leaseStr = commandArgs.join(' ');
-  leaseStr = leaseStr.replace(/\s+/g, ' ').trim();
+  let leaseStr = commandArgs.join(" ");
+  leaseStr = leaseStr.replace(/\s+/g, " ").trim();
 
   // If first arg looks like a spreadsheet ID (long alphanumeric) and not lease text
   if (
     commandArgs[0] &&
     commandArgs[0].length > 20 &&
-    !commandArgs[0].includes(' ')
+    !commandArgs[0].includes(" ")
   ) {
     spreadsheetId = commandArgs[0];
-    leaseStr = commandArgs.slice(1).join(' ');
+    leaseStr = commandArgs.slice(1).join(" ");
   }
 
   if (!leaseStr) {
-    throw new Error('Please provide the lease details string.');
+    throw new Error("Please provide the lease details string.");
   }
 
   // Regex Parsing
@@ -63,7 +67,7 @@ async function lease({ sheets, args, flags, command }) {
   // Dates
   const startDate = leaseStr.match(/from (.*?) to/i)?.[1]?.trim();
   const endDate = leaseStr.match(
-    /from\s+\d{1,2}\/\d{1,2}\/\d{4}\s+to\s+(\d{1,2}\/\d{1,2}\/\d{4})/i,
+    /from\s+\d{1,2}\/\d{1,2}\/\d{4}\s+to\s+(\d{1,2}\/\d{1,2}\/\d{4})/i
   )?.[1];
   // Rent
   const amount = leaseStr.match(/amount (\d+)/i)?.[1]?.trim();
@@ -83,33 +87,33 @@ async function lease({ sheets, args, flags, command }) {
 
   if (!tenantName || !apartment || !startDate || !endDate || !amount) {
     throw new Error(
-      'Could not parse all required lease details. Please check the string format.',
+      "Could not parse all required lease details. Please check the string format."
     );
   }
 
-  console.log('Parsed details:');
-  console.log('Tenant Name:', tenantName);
-  console.log('Apartment:', apartment);
-  console.log('Room:', room);
-  console.log('Start Date:', startDate);
-  console.log('End Date:', endDate);
-  console.log('Amount:', amount);
-  console.log('Prorate:', prorate);
-  console.log('Contact:', contact);
-  console.log('Email:', email);
+  console.log("Parsed details:");
+  console.log("Tenant Name:", tenantName);
+  console.log("Apartment:", apartment);
+  console.log("Room:", room);
+  console.log("Start Date:", startDate);
+  console.log("End Date:", endDate);
+  console.log("Amount:", amount);
+  console.log("Prorate:", prorate);
+  console.log("Contact:", contact);
+  console.log("Email:", email);
 
   // 1. Generate Agreement PDF First
-  console.log('Generating agreement PDF...');
+  console.log("Generating agreement PDF...");
   const agreementData = {
     tenantName,
-    sublessorName: 'Hive NY',
+    sublessorName: "Hive NY",
     propertyAddress: apartment,
     rent: amount,
     proRateRent: prorate,
     securityDeposit: amount,
     leaseStartDate: startDate,
     leaseEndDate: endDate,
-    agreementDate: new Date().toISOString().split('T')[0],
+    agreementDate: new Date().toISOString().split("T")[0],
   };
 
   const pdfPath = await generateAgreementPdf(agreementData, true);
@@ -119,35 +123,91 @@ async function lease({ sheets, args, flags, command }) {
     console.log(`Sending agreement to ${email}...`);
     await sendAgreementEmail(email, tenantName, pdfPath);
   } else {
-    console.log('No email provided, skipping email sending.');
+    console.log("No email provided, skipping email sending.");
   }
 
-  // 3. Ask for Confirmation
-  const readline = require('readline').createInterface({
+  // 3. Check if webhook mode is enabled
+  const useWebhook = flags.webhook || flags.w || WEBHOOK_CONFIG.enabled;
+
+  if (useWebhook) {
+    // WEBHOOK MODE: Save lease data and wait for webhook callback
+    console.log("\n🔗 Webhook mode enabled!");
+
+    // Generate unique ID for this lease
+    const leaseId = crypto.randomBytes(8).toString("hex");
+    const leaseDataPath = path.join(__dirname, "../../.pending-leases");
+
+    // Ensure directory exists
+    if (!fs.existsSync(leaseDataPath)) {
+      fs.mkdirSync(leaseDataPath, { recursive: true });
+    }
+
+    // Save lease data
+    const leaseDataFile = path.join(leaseDataPath, `${leaseId}.json`);
+    const savedLeaseData = {
+      leaseId,
+      tenantName,
+      apartment,
+      room,
+      startDate,
+      endDate,
+      amount,
+      prorate,
+      contact,
+      email,
+      spreadsheetId,
+      createdAt: new Date().toISOString(),
+    };
+
+    fs.writeFileSync(leaseDataFile, JSON.stringify(savedLeaseData, null, 2));
+
+    console.log(`\n📋 Lease data saved with ID: ${leaseId}`);
+    console.log(
+      `\n📡 Webhook URL: ${WEBHOOK_CONFIG.baseUrl}/webhook/agreement-signed`
+    );
+    console.log(`\nTo trigger the webhook, send a POST request with:`);
+    console.log(JSON.stringify(savedLeaseData, null, 2));
+    console.log(
+      `\n⏳ Sheets will be updated automatically when the webhook is called.`
+    );
+
+    return {
+      success: true,
+      mode: "webhook",
+      leaseId,
+      webhookUrl: `${WEBHOOK_CONFIG.baseUrl}/webhook/agreement-signed`,
+      message: `Agreement sent to ${email}. Waiting for webhook callback to update sheets.`,
+      pdfPath,
+      leaseData: savedLeaseData,
+    };
+  }
+
+  // 4. MANUAL MODE: Ask for Confirmation
+  const readline = require("readline").createInterface({
     input: process.stdin,
     output: process.stdout,
   });
 
   const confirmed = await new Promise((resolve) => {
     readline.question(
-      '\nHas the agreement been signed? (yes/no): ',
+      "\nHas the agreement been signed? (yes/no): ",
       (answer) => {
         readline.close();
-        resolve(answer.toLowerCase() === 'yes' || answer.toLowerCase() === 'y');
-      },
+        resolve(answer.toLowerCase() === "yes" || answer.toLowerCase() === "y");
+      }
     );
   });
 
   if (!confirmed) {
     return {
       success: false,
-      message: 'Lease update cancelled by user (agreement not signed).',
+      message: "Lease update cancelled by user (agreement not signed).",
       pdfPath,
     };
   }
 
-  console.log('\nConfirmed! Updating sheets...');
-  const sheetName = 'Inventory';
+  console.log("\nConfirmed! Updating sheets...");
+  const sheetName = "Inventory";
 
   // 4. Search for the address in the Inventory sheet
   console.log(`Searching for apartment: ${apartment} in ${sheetName}...`);
@@ -171,12 +231,12 @@ async function lease({ sheets, args, flags, command }) {
 
   if (rowIndex === -1) {
     throw new Error(
-      `Apartment "${apartment}" not found in ${sheetName} sheet.`,
+      `Apartment "${apartment}" not found in ${sheetName} sheet.`
     );
   }
 
   console.log(
-    `Found apartment at row ${rowIndex}. Updating Inventory Sheet...`,
+    `Found apartment at row ${rowIndex}. Updating Inventory Sheet...`
   );
 
   // 5. Update Inventory Sheet
@@ -185,20 +245,20 @@ async function lease({ sheets, args, flags, command }) {
     { range: `${sheetName}!E${rowIndex}`, values: [[startDate]] },
     { range: `${sheetName}!F${rowIndex}`, values: [[`$${amount}`]] },
     { range: `${sheetName}!G${rowIndex}`, values: [[`$${prorate}`]] },
-    { range: `${sheetName}!W${rowIndex}`, values: [['Occupied']] },
+    { range: `${sheetName}!W${rowIndex}`, values: [["Occupied"]] },
   ];
 
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,
     requestBody: {
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption: "USER_ENTERED",
       data: updates,
     },
   });
 
   // --- Update Cleaning Sheet ---
   try {
-    const cleaningSheetName = 'Cleaning';
+    const cleaningSheetName = "Cleaning";
     const cleaningResp = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${cleaningSheetName}!C:C`,
@@ -218,10 +278,10 @@ async function lease({ sheets, args, flags, command }) {
     if (cleaningRowIndex !== -1 && room) {
       console.log(`Updating Cleaning sheet for Room ${room}...`);
       const roomNum = parseInt(room, 10);
-      const contactVal = contact || email || '';
+      const contactVal = contact || email || "";
       // Room 1: AD(29), AE(30) | Room 2: AG(32), AH(33) | Room 3: AJ(35), AK(36)
-      const tenantColLetters = ['AD', 'AG', 'AJ'];
-      const contactColLetters = ['AE', 'AH', 'AK'];
+      const tenantColLetters = ["AD", "AG", "AJ"];
+      const contactColLetters = ["AE", "AH", "AK"];
 
       if (roomNum >= 1 && roomNum <= 3) {
         const tCol = tenantColLetters[roomNum - 1];
@@ -229,7 +289,7 @@ async function lease({ sheets, args, flags, command }) {
         await sheets.spreadsheets.values.batchUpdate({
           spreadsheetId,
           requestBody: {
-            valueInputOption: 'USER_ENTERED',
+            valueInputOption: "USER_ENTERED",
             data: [
               {
                 range: `${cleaningSheetName}!${tCol}${cleaningRowIndex}`,
@@ -245,12 +305,12 @@ async function lease({ sheets, args, flags, command }) {
       }
     }
   } catch (err) {
-    console.error('Failed to update Cleaning sheet:', err.message);
+    console.error("Failed to update Cleaning sheet:", err.message);
   }
 
   // --- Update Rent Tracker Sheet ---
   try {
-    const rentSheetName = 'Rent Tracker';
+    const rentSheetName = "Rent Tracker";
     const rentResp = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${rentSheetName}!B:C`,
@@ -258,8 +318,8 @@ async function lease({ sheets, args, flags, command }) {
     const rentRows = rentResp.data.values || [];
     let rentRowIndex = -1;
     for (let i = 0; i < rentRows.length; i++) {
-      const rowApt = rentRows[i][0] || '';
-      const rowRoom = rentRows[i][1] || '';
+      const rowApt = rentRows[i][0] || "";
+      const rowRoom = rentRows[i][1] || "";
       if (
         rowApt.toLowerCase().includes(apartment.toLowerCase()) &&
         rowRoom == room
@@ -275,7 +335,7 @@ async function lease({ sheets, args, flags, command }) {
       await sheets.spreadsheets.values.batchUpdate({
         spreadsheetId,
         requestBody: {
-          valueInputOption: 'USER_ENTERED',
+          valueInputOption: "USER_ENTERED",
           data: [
             {
               range: `${rentSheetName}!D${rentRowIndex}`,
@@ -287,36 +347,36 @@ async function lease({ sheets, args, flags, command }) {
             },
             {
               range: `${rentSheetName}!G${rentRowIndex}`,
-              values: [[email || '']],
+              values: [[email || ""]],
             },
             {
               range: `${rentSheetName}!H${rentRowIndex}`,
-              values: [[contact || '']],
+              values: [[contact || ""]],
             },
           ],
         },
       });
     }
   } catch (err) {
-    console.error('Failed to update Rent Tracker sheet:', err.message);
+    console.error("Failed to update Rent Tracker sheet:", err.message);
   }
 
   // --- Update Inventory Data Sheet ---
   try {
-    const invDataSheetName = 'Inventory Data';
+    const invDataSheetName = "Inventory Data";
     const invDataResp = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${invDataSheetName}!B:C`,
     });
     const invDataRows = invDataResp.data.values || [];
     let invDataRowIndex = -1;
-    let currentApt = '';
+    let currentApt = "";
 
     for (let i = 0; i < invDataRows.length; i++) {
       const rowApt = invDataRows[i][0];
       const rowRoom = invDataRows[i][1];
 
-      if (rowApt && rowApt.trim() !== '') {
+      if (rowApt && rowApt.trim() !== "") {
         currentApt = rowApt.trim();
       }
 
@@ -335,7 +395,7 @@ async function lease({ sheets, args, flags, command }) {
       await sheets.spreadsheets.values.batchUpdate({
         spreadsheetId,
         requestBody: {
-          valueInputOption: 'USER_ENTERED',
+          valueInputOption: "USER_ENTERED",
           data: [
             {
               range: `${invDataSheetName}!D${invDataRowIndex}`,
@@ -350,16 +410,16 @@ async function lease({ sheets, args, flags, command }) {
       });
     }
   } catch (err) {
-    console.error('Failed to update Inventory Data sheet:', err.message);
+    console.error("Failed to update Inventory Data sheet:", err.message);
   }
 
   // 6. Audit Log
   await logAudit(sheets, spreadsheetId, {
     sheet: sheetName,
     cell: `D${rowIndex}:W${rowIndex}`,
-    oldValue: 'Available',
+    oldValue: "Available",
     newValue: `Leased to ${tenantName} ($${amount})`,
-    source: 'LEASE_CMD',
+    source: "LEASE_CMD",
   });
 
   return {
