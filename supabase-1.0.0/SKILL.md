@@ -1,5 +1,5 @@
 ---
-name: supabase
+name: supabase-1.0.0
 description: Connect to Supabase for database operations, vector search, and storage. Use for storing data, running SQL queries, similarity search with pgvector, and managing tables. Triggers on requests involving databases, vector stores, embeddings, or Supabase specifically.
 metadata: {"clawdbot":{"requires":{"env":["SUPABASE_URL","SUPABASE_SERVICE_KEY"]}}}
 ---
@@ -21,8 +21,13 @@ Interact with Supabase projects: queries, CRUD, vector search, and table managem
 
 ```bash
 # Required
-export SUPABASE_URL="https://kkeevzkktpmkyxzcxrfl.supabase.co"
-export SUPABASE_SERVICE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZWV2emtrdHBta3l4emN4cmZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTI4NjI4NSwiZXhwIjoyMDgwODYyMjg1fQ.2bIWC7n_-5Uqcf4mnvF6yUSI9zXOu7c3TuL6ZQLlIgo"
+# export SUPABASE_URL="https://kkeevzkktpmkyxzcxrfl.supabase.co"
+#export SUPABASE_SERVICE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZWV2emtrdHBta3l4emN4cmZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTI4NjI4NSwiZXhwIjoyMDgwODYyMjg1fQ.2bIWC7n_-5Uqcf4mnvF6yUSI9zXOu7c3TuL6ZQLlIgo"
+
+
+export SUPABASE_URL=https://hljntbjfkhhfgcintznn.supabase.co
+export SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsam50Ympma2hoZmdjaW50em5uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NzY4NTcsImV4cCI6MjA4NzE1Mjg1N30.UOG5UgoXm0eSwpQObHMmsyvQeT_SKKL6JO1xYsoEpK8
+export SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhsam50Ympma2hoZmdjaW50em5uIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTU3Njg1NywiZXhwIjoyMDg3MTUyODU3fQ.Q8r7UuI1Cp1C_XunS9Bs54q7bcNYLKwd_0S3fTwRW_4
 
 # Optional: for management API
 export SUPABASE_ACCESS_TOKEN="sbp_xxxxx"

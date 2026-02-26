@@ -23,6 +23,7 @@ const { addSheet } = require('./addSheet');
 const { deleteSheet } = require('./deleteSheet');
 const { renameSheet } = require('./renameSheet');
 const { batch } = require('./batch');
+const { allUpdatesCleaning } = require('./allUpdatesCleaning');
 const { lease } = require('./lease');
 const { addApartment } = require('./addApartment');
 
@@ -50,6 +51,7 @@ module.exports = {
   deleteSheet,
   renameSheet,
   batch,
+  allUpdatesCleaning,
   lease,
   'Add apartment': addApartment,
 };
