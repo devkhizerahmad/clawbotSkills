@@ -40,10 +40,6 @@ npm install
 node scripts/sheets-cli.js help
 node scripts/sheets-cli.js read 1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU "Sheet1!A1:C10"
 node scripts/sheets-cli.js append 1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU "Sheet1!A:B" '@data.json'
-
-# Bulk update operations
-node scripts/sheets-cli.js allUpdatesCleaning 1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU "add" "7" "days"  # Add 7 days to all dates in X column
-node scripts/sheets-cli.js allUpdatesCleaning 1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU "subtract" "1" "months"  # Subtract 1 month from all dates in X column
 ```
 
 You can also use npm:
@@ -65,7 +61,13 @@ Supported sources (first match wins):
 
 ## Input Rules
 
-- If cleaning sheet is being edited and you have been asked to update the cleaning date, make sure to update the cleaning date column (Column X) in the Cleaning sheet.
+- If cleaning sheet is being edited and you have been asked to update the cleaning date, make sure to update the cleaning date column (Column W) in the Cleaning sheet.
+- **Syncing Apartments**: If the user asks to "Add apartment [apartment name]" or sync apartment data, use the `node scripts/sheets-cli.js Add apartment "[apartment name]"` command. This command automatically:
+  1. Fetches data and room links from Google Drive.
+  2. Updates the `Unit_Availability_Details` table in the Inventory sheet (preserving existing row data).
+  3. Updates the `Inventory Data` and `Rent Tracker` sheets.
+  4. Applies necessary formatting and borders.
+  5. Skips the `Cleaning` sheet.
 
 ## Input conventions
 
@@ -83,19 +85,11 @@ Example `data.json`:
 
 ## Command map (high level)
 
-Date Operations:
-
-- `allUpdatesCleaning <spreadsheetId> <add|subtract> <amount> <days|weeks|months|years>` - Performs arithmetic on all dates in the X column
-
 Data:
 
 - `read`, `write`, `append`, `clear`, `batchGet`, `batchWrite`
-- `highlight`, `unhighlight`
-
-Date Operations:
-
-- `allUpdatesCleaning` - Add/subtract time units to all dates in a column
-
+- `highlight`, `unhighlight`, `Add apartment`
+- `lease`
 
 Formatting:
 
@@ -138,10 +132,6 @@ Advanced:
 
 ### Commands That Create Audit Logs
 
-Date arithmetic operations:
-
-- `allUpdatesCleaning` - Updates multiple cells and creates audit entries for each change
-
 Single-cell operations:
 
 - `write` - Direct cell write
@@ -160,7 +150,6 @@ Batch operations:
 
 ### How Logs Are Generated
 
-- **Bulk update operations** (`allUpdatesCleaning`): Creates separate log entry for each cell that changes
 - **Single-cell operations** (`write`, `append`, `clear`): Fetches old value, compares with new value, logs if different
 - **Batch operations** (`batchWrite`, `batch`): Aggregates all affected cells into comma-separated lists in a single log entry
 - **Timestamp format**: Automatically formatted from ISO 8601 to `M/D/YYYY HH:mm:ss` format
@@ -192,33 +181,6 @@ node scripts/sheets-cli.js read 1x7Ch_AOuLk6Zht2ef0Q--2K_QueKvcAft-P6d0sx76A "Au
 | 2/12/2026 14:31:12 | ASSISTANT | Sheet1 | B1, B2, B3 | 10, 20, 30 | 15, 25, 35 | SYSTEM |
 
 ---
-
-## Cleaning Sheet Automation
-
-When working with the Cleaning sheet, the system provides automated functionality:
-
-- **Date Column**: Column X (previously W) is monitored for cleaning date changes
-- **Color Formatting**: When a date is changed in Column X, the cell is automatically formatted with a light blue background
-- **Email Notifications**: When a date changes, an email notification is sent to the contact email found in the 'Contacts' column for that specific row
-- **Contact Lookup**: The system identifies the correct contact by finding the 'Contacts' column in row 1 and extracting the email from the same row as the date change
-
-## Bulk Updates Cleaning Command
-
-The `allUpdatesCleaning` command allows bulk date operations:
-
-```bash
-# Add 5 days to all dates in Column X
-allUpdatesCleaning <spreadsheetId> add 5 days
-
-# Add 2 weeks to all dates in Column X
-allUpdatesCleaning <spreadsheetId> add 2 weeks
-
-# Subtract 1 month from all dates in Column X
-allUpdatesCleaning <spreadsheetId> subtract 1 months
-
-# Add 1 year to all dates in Column X
-allUpdatesCleaning <spreadsheetId> add 1 years
-```
 
 ## Operational guidance
 

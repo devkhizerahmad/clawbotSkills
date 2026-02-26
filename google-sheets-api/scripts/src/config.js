@@ -23,6 +23,8 @@ const EMAIL_PASS = 'aief unbt nkfa smrj';
 const EMAIL_RECIPIENT = 'devkhizerahmad@gmail.com';
 
 const CLEANING_SPREADSHEET_ID = '1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU';
+const INVENTORY_SPREADSHEET_ID = '1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU';
+const APARTMENT_CATALOG_FOLDER_ID = '1iRfjl7Fao3MHxgi6SQgIUFp3QSCKxKm_';
 const CLEANING_SHEET_NAME = 'Cleaning';
 const CLEANING_DATE_COLUMN = 'X';
 const CLEANING_DATE_COLOR = {
@@ -62,6 +64,8 @@ const HELP_TEXT = `
     batchWrite <spreadsheetId> <jsonOr@file>
     highlight <spreadsheetId> <range>
     unhighlight <spreadsheetId> <range>
+    lease <spreadsheetId> <leaseDetailsText>
+    add-apartment <apartmentName>
   
   Formatting and layout:
     format <spreadsheetId> <range> <formatJsonOr@file>
@@ -99,6 +103,8 @@ module.exports = {
   CLEANING_SHEET_NAME,
   CLEANING_DATE_COLUMN,
   CLEANING_DATE_COLOR,
+  INVENTORY_SPREADSHEET_ID,
+  APARTMENT_CATALOG_FOLDER_ID,
   READ_ONLY_COMMANDS,
   HELP_TEXT,
 };
