@@ -84,8 +84,13 @@ const writeTextWithBoldNames = (
  * Generates a sublease agreement PDF.
  * @param {AgreementData} data
  * @param {boolean} includeLetterhead
+ * @param {boolean} [addSublesseeSignature=false]
  */
-async function generateAgreementPdf(data, includeLetterhead) {
+async function generateAgreementPdf(
+  data,
+  includeLetterhead,
+  addSublesseeSignature = false,
+) {
   const pdf = new jsPDF('p', 'mm', 'letter');
   const pageWidth = pdf.internal.pageSize.getWidth();
   const margin = 20;
@@ -326,7 +331,32 @@ async function generateAgreementPdf(data, includeLetterhead) {
   pdf.text('Date', pageWidth - margin - 25, yPos);
   yPos += 7;
 
-  pdf.text('__________________________', margin, yPos);
+  if (addSublesseeSignature) {
+    pdf.text('__________________________', margin, yPos);
+  } else {
+    const linkText = 'click here to signature';
+    const textWidth = pdf.getTextWidth(linkText);
+    pdf.setTextColor(0, 0, 255); // Blue
+    pdf.text(linkText, margin, yPos);
+
+    // Add underline
+    pdf.setDrawColor(0, 0, 255);
+    pdf.setLineWidth(0.1);
+    pdf.line(margin, yPos + 0.5, margin + textWidth, yPos + 0.5);
+
+    // Add dynamic data to URL
+    const baseUrl = 'https://lease-agreement-signature-form-fron.vercel.app';
+    const params = new URLSearchParams();
+    Object.keys(data).forEach((key) => {
+      if (data[key]) params.append(key, data[key]);
+    });
+    const signatureUrl = `${baseUrl}?${params.toString()}`;
+
+    pdf.link(margin, yPos - 5, textWidth, 7, { url: signatureUrl });
+    pdf.setTextColor(0, 0, 0); // Reset
+    pdf.setDrawColor(0, 0, 0); // Reset
+  }
+
   pdf.text('________________________', pageWidth - margin - 50, yPos);
 
   const fileName = `${data.tenantName} Sublease Agreement.pdf`;

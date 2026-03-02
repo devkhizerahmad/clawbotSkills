@@ -51,10 +51,10 @@ const READ_ONLY_COMMANDS = new Set([
 
 const HELP_TEXT = `
   Google Sheets CLI (OpenClaw skill)
-  
+
   Usage:
     node scripts/sheets-cli.js <command> [args] [--flags]
-  
+
   Core data commands:
     read <spreadsheetId> <range> [--major=ROWS|COLUMNS] [--render=FORMATTED_VALUE]
     write <spreadsheetId> <range> <jsonOr@file> [--input=RAW|USER_ENTERED]
@@ -66,7 +66,7 @@ const HELP_TEXT = `
     unhighlight <spreadsheetId> <range>
     lease <spreadsheetId> <leaseDetailsText>
     add-apartment <apartmentName>
-  
+
   Formatting and layout:
     format <spreadsheetId> <range> <formatJsonOr@file>
     getFormat <spreadsheetId> <range>
@@ -76,7 +76,7 @@ const HELP_TEXT = `
     resize <spreadsheetId> <sheetName> <cols|rows> <start> <end> <px>
     autoResize <spreadsheetId> <sheetName> <startCol> <endCol>
     freeze <spreadsheetId> <sheetName> [rows] [cols]
-  
+
   Sheet management:
     create <title>
     info <spreadsheetId>
@@ -84,7 +84,7 @@ const HELP_TEXT = `
     deleteSheet <spreadsheetId> <sheetName>
     renameSheet <spreadsheetId> <oldName> <newName>
     copyFormat <spreadsheetId> <sourceRange> <destRange>
-  
+
   Advanced:
     batch <spreadsheetId> <requestsJsonOr@file>
   
