@@ -51,5 +51,5 @@ module.exports = {
   renameSheet,
   batch,
   lease,
-  'Add apartment': addApartment,
+  'add-apartment': addApartment,
 };
