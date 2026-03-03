@@ -4,16 +4,19 @@ const { jsonFromArg } = require('../utils/jsonFromArg');
 const { parseA1Range } = require('../utils/parseA1Range');
 const { getSheetIdByName } = require('../services/sheets/getSheetIdByName');
 const { getDefaultSheetId } = require('../services/sheets/getDefaultSheetId');
+const { logAudit } = require('../services/audit/logAudit');
 
-async function borders({ sheets, args }) {
+async function borders({ sheets, args, command }) {
   const [, spreadsheetId, range, styleRaw] = args;
   if (!spreadsheetId || !range)
     throw new Error(
       'Usage: borders <spreadsheetId> <range> [styleJsonOr@file]',
     );
+    
   const style = styleRaw
     ? jsonFromArg(styleRaw, 'borderStyle')
     : { style: 'SOLID', color: { red: 0, green: 0, blue: 0 } };
+    
   const grid = parseA1Range(range);
   const sheetId = grid.sheetName
     ? await getSheetIdByName(sheets, spreadsheetId, grid.sheetName)
@@ -37,6 +40,17 @@ async function borders({ sheets, args }) {
       ],
     },
   });
+  
+  // Log audit entry for border update
+  await logAudit({
+    user: 'ASSISTANT',
+    sheet: grid.sheetName || 'Sheet1',
+    cell: range,
+    oldValue: 'No borders or different borders',
+    newValue: `Borders updated with style: ${style.style || 'SOLID'}`,
+    source: 'SYSTEM',
+  });
+  
   return { updated: true, replies: response.data.replies };
 }
 

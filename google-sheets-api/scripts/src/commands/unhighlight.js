@@ -65,6 +65,7 @@ async function unhighlight({ sheets, args, command }) {
         rowNumber,
         'N/A',
       );
+      // STATUS updated above; audit is handled by executeWithOptionalAudit wrapper
 
       return {
         rowNumber,

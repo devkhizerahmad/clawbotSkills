@@ -19,6 +19,7 @@ async function batchGet({ sheets, args, flags }) {
     valueRenderOption: flags.render || flags.valueRenderOption,
     dateTimeRenderOption: flags.date || flags.dateTimeRenderOption,
   });
+
   return response.data;
 }
 

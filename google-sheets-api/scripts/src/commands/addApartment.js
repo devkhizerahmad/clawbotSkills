@@ -6,6 +6,8 @@ const {
 const { INVENTORY_SPREADSHEET_ID } = require('../config');
 const { parseA1Range } = require('../utils/parseA1Range');
 const { getSheetIdByName } = require('../services/sheets/getSheetIdByName');
+const { logAudit } = require('../services/audit/logAudit');
+
 
 const INVENTORY_DATA_HEADERS = [
   '#',
@@ -152,6 +154,7 @@ async function addApartment({ sheets, args, flags }) {
   }
 
   console.log(`Searching for "${apartmentName}" in Google Drive...`);
+  const auditUser = flags.user || 'CLI_Admin'; 
   const apartment = await fetchApartmentByName(apartmentName);
 
   if (!apartment) {
@@ -275,6 +278,16 @@ async function addApartment({ sheets, args, flags }) {
       const startIdx = inventoryTableStartRow + inventoryMatches[0];
       const endIdx =
         inventoryTableStartRow + inventoryMatches[inventoryMatches.length - 1];
+      
+            // Audit Log for Inventory Update
+      await logAudit({
+        user: auditUser,
+        sheet: inventorySheetTitle,
+        cell: `Rows ${startIdx + 1}-${endIdx + 1}`,
+        oldValue: `${inventoryMatches.length} rooms`,
+        newValue: `${rooms.length} rooms (Updated)`,
+        source: 'addApartment Command',
+      });
 
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
@@ -371,6 +384,15 @@ async function addApartment({ sheets, args, flags }) {
     if (firstEmptyIdxInRows !== -1) {
       const startRowOnSheet = inventoryTableStartRow + firstEmptyIdxInRows + 1;
       console.log(`Found empty row! Writing to Row ${startRowOnSheet}...`);
+            // Audit Log for Inventory Add (Empty Row Found)
+      await logAudit({
+        user: auditUser,
+        sheet: inventorySheetTitle,
+        cell: `Row ${startRowOnSheet}`,
+        oldValue: 'Empty',
+        newValue: `Added ${apartment.name}`,
+        source: 'addApartment Command',
+      });
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: `${inventorySheetTitle}!A${startRowOnSheet}`,
@@ -396,6 +418,15 @@ async function addApartment({ sheets, args, flags }) {
         requestBody: { values: newRows },
       });
       const grid = parseA1Range(appendRes.data.updates.updatedRange);
+            // Audit Log for Inventory Add (Appended)
+      await logAudit({
+        user: auditUser,
+        sheet: inventorySheetTitle,
+        cell: appendRes.data.updates.updatedRange,
+        oldValue: 'N/A',
+        newValue: `Added ${apartment.name}`,
+        source: 'addApartment Command',
+      });
       await applyBorders(
         sheets,
         spreadsheetId,
@@ -533,6 +564,16 @@ async function addApartment({ sheets, args, flags }) {
       ];
       const startIdx = Math.max(0, firstRoomIdx - 2);
       const endIdx = firstRoomIdx + rowCount;
+            // Audit Log for Block Update
+      await logAudit({
+        user: auditUser,
+        sheet: sheetName,
+        cell: `Rows ${startIdx + 1}-${endIdx}`,
+        oldValue: `${rowCount} rooms`,
+        newValue: `${rooms.length} rooms (Updated)`,
+        source: 'addApartment Command',
+      });
+
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         requestBody: {
@@ -602,6 +643,15 @@ async function addApartment({ sheets, args, flags }) {
         requestBody: { values: newBlock },
       });
       const grid = parseA1Range(res.data.updates.updatedRange);
+       // Audit Log for Block Add
+      await logAudit({
+        user: auditUser,
+        sheet: sheetName,
+        cell: res.data.updates.updatedRange,
+        oldValue: 'N/A',
+        newValue: `Added block for ${apartment.name}`,
+        source: 'addApartment Command',
+      });
       await applyBlockFormatting(
         sheetName,
         sheetId,
