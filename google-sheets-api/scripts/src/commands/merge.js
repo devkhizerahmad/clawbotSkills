@@ -3,13 +3,15 @@
 const { parseA1Range } = require('../utils/parseA1Range');
 const { getSheetIdByName } = require('../services/sheets/getSheetIdByName');
 const { getDefaultSheetId } = require('../services/sheets/getDefaultSheetId');
+const { logAudit } = require('../services/audit/logAudit');
 
-async function merge({ sheets, args, flags }) {
+async function merge({ sheets, args, flags, command }) {
   const [, spreadsheetId, range] = args;
   if (!spreadsheetId || !range)
     throw new Error(
       'Usage: merge <spreadsheetId> <range> [--type=MERGE_ALL|MERGE_COLUMNS|MERGE_ROWS]',
     );
+    
   const grid = parseA1Range(range);
   const sheetId = grid.sheetName
     ? await getSheetIdByName(sheets, spreadsheetId, grid.sheetName)
@@ -30,6 +32,17 @@ async function merge({ sheets, args, flags }) {
       ],
     },
   });
+  
+  // Log audit entry for cell merge
+  await logAudit({
+    user: 'ASSISTANT',
+    sheet: grid.sheetName || 'Sheet1',
+    cell: range,
+    oldValue: 'Separate cells',
+    newValue: `Cells merged (${mergeType})`,
+    source: 'SYSTEM',
+  });
+  
   return { merged: true, replies: response.data.replies };
 }
 

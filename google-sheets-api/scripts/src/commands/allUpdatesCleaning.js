@@ -1,10 +1,10 @@
 'use strict';
 
-const { jsonFromArg } = require('../utils/jsonFromArg');
-const { getSheetIdByName } = require('../services/sheets/getSheetIdByName');
 const { formatCleaningDateCell } = require('../services/email/formatCleaningDateCell');
 const { CLEANING_SPREADSHEET_ID, CLEANING_SHEET_NAME, CLEANING_DATE_COLUMN } = require('../config');
 const { getSheetsClient } = require('../auth');
+const { logAudit } = require('../services/audit/logAudit');
+
 
 async function allUpdatesCleaning({ sheets, args, flags, command, isMutation }) {
   const spreadsheetId = args[1];
@@ -17,13 +17,13 @@ async function allUpdatesCleaning({ sheets, args, flags, command, isMutation }) 
 
   if (!['add', 'subtract'].includes(operation))
     throw new Error('Operation must be "add" or "subtract"');
-    
+
   if (!['days', 'weeks', 'months', 'years'].includes(unit))
     throw new Error('Unit must be "days", "weeks", "months", or "years"');
 
   // Read the entire X column
   const range = `${CLEANING_SHEET_NAME}!${CLEANING_DATE_COLUMN}:${CLEANING_DATE_COLUMN}`;
-  
+
   const existingData = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range,
@@ -31,6 +31,15 @@ async function allUpdatesCleaning({ sheets, args, flags, command, isMutation }) 
 
   const values = existingData.data.values || [];
   if (values.length === 0) {
+    // Log audit entry even if no data found
+    await logAudit({
+      user: 'ASSISTANT',
+      sheet: CLEANING_SHEET_NAME,
+      cell: range,
+      oldValue: 'N/A',
+      newValue: 'No data found in the X column',
+      source: 'SYSTEM',
+    });
     return { message: 'No data found in the X column' };
   }
 
@@ -40,7 +49,7 @@ async function allUpdatesCleaning({ sheets, args, flags, command, isMutation }) 
 
   for (let i = 0; i < values.length; i++) {
     const cellValue = values[i][0];
-    
+
     if (!cellValue) {
       updatedValues.push([null]); // Keep empty cells empty
       continue;
@@ -48,7 +57,7 @@ async function allUpdatesCleaning({ sheets, args, flags, command, isMutation }) 
 
     try {
       let date = new Date(cellValue);
-      
+
       if (isNaN(date.getTime())) {
         // Try parsing as MM/DD/YYYY format
         const dateParts = cellValue.toString().split(/[\/\-]/);
@@ -62,6 +71,7 @@ async function allUpdatesCleaning({ sheets, args, flags, command, isMutation }) 
       }
 
       if (isNaN(date.getTime())) {
+        console.warn(`Invalid date at row ${i + 1}: "${cellValue}"`);
         updatedValues.push([cellValue]); // Keep invalid dates as-is
         continue;
       }
@@ -112,7 +122,7 @@ async function allUpdatesCleaning({ sheets, args, flags, command, isMutation }) 
     }
   }
 
-  // Update the entire column
+  // Write the updated values back to the sheet
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     range,
@@ -120,9 +130,42 @@ async function allUpdatesCleaning({ sheets, args, flags, command, isMutation }) 
     requestBody: { values: updatedValues },
   });
 
+  if (changes.length === 0) {
+    await logAudit({
+      user: 'ASSISTANT',
+      sheet: CLEANING_SHEET_NAME,
+      cell: range,
+      oldValue: 'No effective date changes',
+      newValue: `${operation} ${amount} ${unit} attempted`,
+      source: 'allUpdatesCleaning',
+    });
+  }
+
+  // Log granular per-row audit entries
+  if (changes.length > 0) {
+    const affectedCells = changes.map(change => `${CLEANING_DATE_COLUMN}${change.row}`).join(', ');
+    const oldValues = values.map(v => v[0]).join(', ');
+    const newValues = updatedValues.map(v => v[0]).join(', ');
+
+    //  const oldValues = changes.map(change => change.oldDate).join(', ');
+    // const newValues = changes.map(change => change.newDate).join(', ');
+    try {
+      await logAudit({
+        user: 'ASSISTANT',
+        sheet: CLEANING_SHEET_NAME,
+        cell: affectedCells,
+        oldValue: oldValues,
+        newValue: newValues,
+        source: 'allUpdatesCleaning',
+      });
+    } catch (err) {
+      console.warn('Audit log failed:', err.message);
+    }
+  }
+
   // Trigger formatCleaningDateCell for each changed row
   const sheetsClient = getSheetsClient(['https://www.googleapis.com/auth/spreadsheets']);
-  
+
   for (const change of changes) {
     const cell = `${CLEANING_SHEET_NAME}!${CLEANING_DATE_COLUMN}${change.row}`;
     await formatCleaningDateCell(

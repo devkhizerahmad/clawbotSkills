@@ -53,5 +53,5 @@ module.exports = {
   batch,
   allUpdatesCleaning,
   lease,
-  'add-apartment': addApartment,
+  'Add apartment': addApartment,
 };

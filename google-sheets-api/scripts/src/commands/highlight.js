@@ -65,6 +65,7 @@ async function highlight({ sheets, args, command }) {
         rowNumber,
         'Unavailable',
       );
+      // STATUS updated above; audit is handled by executeWithOptionalAudit wrapper
 
       return {
         rowNumber,

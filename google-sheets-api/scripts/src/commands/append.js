@@ -25,7 +25,13 @@ async function append({ sheets, args, flags, command, isMutation }) {
   ) {
     values = values.values;
   }
-  const newValue = JSON.stringify(values);
+  const summarizedNewValue =
+  values.length > 50
+    ? JSON.stringify(values.slice(0, 50)) + `, ... (+${values.length - 50} more rows)`
+    : JSON.stringify(values);
+
+const newValue = summarizedNewValue;
+  // const newValue = JSON.stringify(values);
 
   return executeWithOptionalAudit({
     isMutation,

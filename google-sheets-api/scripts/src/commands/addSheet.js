@@ -1,14 +1,27 @@
 'use strict';
 
-async function addSheet({ sheets, args }) {
+// const { logAudit } = require('../services/audit/logAudit');
+const { executeWithAuditForBatch } = require('../services/audit/executeWithAuditForBatch');
+
+async function addSheet({ sheets, args, command }) {
   const [, spreadsheetId, title] = args;
   if (!spreadsheetId || !title)
     throw new Error('Usage: addSheet <spreadsheetId> <title>');
-  const response = await sheets.spreadsheets.batchUpdate({
+
+  const requests = [{ addSheet: { properties: { title } } }];
+  const response = await executeWithAuditForBatch({
+    command,
     spreadsheetId,
-    requestBody: { requests: [{ addSheet: { properties: { title } } }] },
+    requestsRaw: requests,
+    // No range because this is structural
+    execute: () =>
+      sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests },
+      }),
   });
-  return response.data;
+
+  return response;
 }
 
 module.exports = { addSheet };

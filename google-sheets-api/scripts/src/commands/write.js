@@ -117,6 +117,7 @@ async function write({ sheets, args, flags, command, isMutation }) {
       }
 
       // 🟢 KEEP YOUR CLEANING FORMATTER
+      const isMoveout = flags.moveout || false;
       if (spreadsheetId === CLEANING_SPREADSHEET_ID && range) {
         await formatCleaningDateCell(
           sheetsClient,
@@ -124,6 +125,7 @@ async function write({ sheets, args, flags, command, isMutation }) {
           range,
           oldValue,
           newValue,
+          isMoveout,
         );
       }
 
