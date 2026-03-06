@@ -10,6 +10,7 @@ const {
 const { indexToCol } = require('../../utils/indexToCol');
 const { getSheetIdByName } = require('../sheets/getSheetIdByName');
 const { sendCleaningDateEmail } = require('./sendCleaningDateEmail');
+const { logAudit } = require('../audit/logAudit');
 
 async function formatCleaningDateCell(
   sheets,
@@ -17,6 +18,7 @@ async function formatCleaningDateCell(
   cell,
   oldValue,
   newValue,
+  isMoveout = false,
 ) {
   // Check: Correct spreadsheet, correct sheet, correct column
   if (spreadsheetId !== CLEANING_SPREADSHEET_ID) return;
@@ -48,6 +50,16 @@ async function formatCleaningDateCell(
   console.log("Row number:", rowNumber);
   console.log("Column:", columnMatch[1].toUpperCase());
 
+  // Audit log for starting the formatting operation
+  await logAudit({
+    user: 'CLEANING_FORMATTER',
+    sheet: 'Cleaning_Date_Format',
+    cell: cell,
+    oldValue: oldValue || '(empty)',
+    newValue: `${newValue} | Move-out: ${isMoveout ? 'Yes' : 'No'}`,
+    source: 'CLEANING_SERVICE',
+  });
+
   // Get sheet ID
   const sheetId = await getSheetIdByName(
     sheets,
@@ -55,32 +67,58 @@ async function formatCleaningDateCell(
     CLEANING_SHEET_NAME,
   );
 
-  // Apply color to X column cell only
+  // Apply color to X column cell based on isMoveout flag
   // 'X' is the 24th letter, so index 23
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId,
-    requestBody: {
-      requests: [
-        {
-          repeatCell: {
-            range: {
-              sheetId,
-              startRowIndex: rowNumber - 1,
-              endRowIndex: rowNumber,
-              startColumnIndex: 23, // X is index 23
-              endColumnIndex: 24, // End at index 24 (exclusive)
-            },
-            cell: {
-              userEnteredFormat: {
-                backgroundColor: CLEANING_DATE_COLOR,
+  const backgroundColor = isMoveout ? CLEANING_DATE_COLOR : { red: 1, green: 1, blue: 0 }; // Yellow if not moveout
+  const colorDescription = isMoveout ? 'Light Blue (#caedfb)' : 'Yellow';
+  
+  try {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            repeatCell: {
+              range: {
+                sheetId,
+                startRowIndex: rowNumber - 1,
+                endRowIndex: rowNumber,
+                startColumnIndex: 23, // X is index 23
+                endColumnIndex: 24, // End at index 24 (exclusive)
               },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: backgroundColor,
+                },
+              },
+              fields: 'userEnteredFormat.backgroundColor',
             },
-            fields: 'userEnteredFormat.backgroundColor',
           },
-        },
-      ],
-    },
-  });
+        ],
+      },
+    });
+
+    // Audit log for successful color formatting
+    await logAudit({
+      user: 'CLEANING_FORMATTER',
+      sheet: CLEANING_SHEET_NAME,
+      cell: `X${rowNumber}`,
+      oldValue: 'Previous color',
+      newValue: `Applied ${colorDescription} background (Move-out: ${isMoveout ? 'Yes' : 'No'})`,
+      source: 'CLEANING_SERVICE',
+    });
+  } catch (error) {
+    // Audit log for formatting error
+    await logAudit({
+      user: 'CLEANING_FORMATTER',
+      sheet: 'Cleaning_Format_Error',
+      cell: `X${rowNumber}`,
+      oldValue: 'Formatting pending',
+      newValue: `Failed to apply color: ${error.message}`,
+      source: 'CLEANING_SERVICE',
+    });
+    throw error;
+  }
 
   // ===== GET CONTACT EMAIL FROM ROW =====
   let contactEmail = EMAIL_CONFIG.recipient; // Default fallback
@@ -124,7 +162,7 @@ async function formatCleaningDateCell(
   // ======================================
 
   // ===== SEND EMAIL NOTIFICATION =====
-  await sendCleaningDateEmail(cell, oldValue, newValue, contactEmail);
+  await sendCleaningDateEmail(cell, oldValue, newValue, contactEmail, isMoveout);
   // ===================================
 }
 
