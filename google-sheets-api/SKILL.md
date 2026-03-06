@@ -153,6 +153,19 @@ Single-cell operations:
 - `highlight` — Cell highlight with color tracking
 - `unhighlight` — Cell unhighlight operations
 
+Cleaning date automation (automatic audit logging when cleaning dates are modified):
+
+- **Cell formatting** — Automatic color coding based on move-out status with detailed audit trail:
+  - Light blue (#caedfb) for move-out cleaning
+  - Yellow for regular cleaning
+  - Logs include move-out status and color applied
+- **Email notifications** — Comprehensive email service audit logging:
+  - Email preparation and recipient lookup
+  - Successful sends with subject line and cleaning type
+  - Failed sends with error details
+  - Skipped emails (invalid addresses, missing config)
+  - All entries include move-out status tracking
+
 Complex multi-sheet operations:
 
 - `Add apartment` — Comprehensive audit logging for:
@@ -199,13 +212,13 @@ Batch operations:
 
 ```bash
 # Get all audit logs
-node scripts/sheets-cli.js read 1x7Ch_AOuLk6Zht2ef0Q--2K_QueKvcAft-P6d0sx76A "Audit_Log!A:G"
+node scripts/sheets-cli.js read 1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU "Audit_Log!A:G"
 
 # Get last 50 entries
-node scripts/sheets-cli.js read 1x7Ch_AOuLk6Zht2ef0Q--2K_QueKvcAft-P6d0sx76A "Audit_Log!A1:G50"
+node scripts/sheets-cli.js read 1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU "Audit_Log!A1:G50"
 
 # Get last 100 entries
-node scripts/sheets-cli.js read 1x7Ch_AOuLk6Zht2ef0Q--2K_QueKvcAft-P6d0sx76A "Audit_Log!A1:G100"
+node scripts/sheets-cli.js read 1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU "Audit_Log!A1:G100"
 ```
 
 **Gmail App Password Setup:**
@@ -245,6 +258,21 @@ Lease command examples:
 | 3/3/2026 11:20:23  | LEASE_CMD     | Lease_Email          | N/A       | N/A                         | Sending lease agreement to john@example.com for John Smith                             | LEASE_CMD     |
 | 3/3/2026 11:20:25  | LEASE_CMD     | Lease_Email          | N/A       | Email Not Sent              | Lease agreement sent successfully to john@example.com for John Smith                   | LEASE_CMD     |
 | 3/3/2026 11:20:28  | LEASE_SERVICE | Lease_Operation      | N/A       | N/A                         | Starting lease operation for John Smith - Apartment: The Clarendon...                  | LEASE_SERVICE |
+
+Cleaning date automation examples (with isMoveout flag):
+
+| Timestamp          | User                | Sheet                      | Cell         | Old Value                          | New Value                                                                                     | Source             |
+| ------------------ | ------------------- | -------------------------- | ------------ | ---------------------------------- | --------------------------------------------------------------------------------------------- | ------------------ |
+| 3/6/2026 09:15:30  | CLEANING_FORMATTER  | Cleaning_Date_Format       | Cleaning!X10 | 2026-03-01 (empty)                 | 2026-03-15 \| Move-out: Yes                                                                   | CLEANING_SERVICE   |
+| 3/6/2026 09:15:32  | CLEANING_FORMATTER  | Cleaning                   | X10          | Previous color                     | Applied Light Blue (#caedfb) background (Move-out: Yes)                                       | CLEANING_SERVICE   |
+| 3/6/2026 09:15:33  | CLEANING_EMAIL_SERVICE | Cleaning_Email_Notification | X10       | Email not sent                     | Preparing email to tenant@example.com \| Move-out: Yes                                        | CLEANING_SERVICE   |
+| 3/6/2026 09:15:35  | CLEANING_EMAIL_SERVICE | Cleaning_Email_Sent        | X10       | Email pending                      | Email sent to tenant@example.com \| Subject: Cleaning Date Updated - Cleaning!X10 (Move-out) \| Type: Move-out Cleaning | CLEANING_SERVICE   |
+| 3/6/2026 10:22:45  | CLEANING_FORMATTER  | Cleaning_Date_Format       | Cleaning!X15 | 2026-03-10                         | 2026-03-20 \| Move-out: No                                                                    | CLEANING_SERVICE   |
+| 3/6/2026 10:22:47  | CLEANING_FORMATTER  | Cleaning                   | X15          | Previous color                     | Applied Yellow background (Move-out: No)                                                      | CLEANING_SERVICE   |
+| 3/6/2026 10:22:48  | CLEANING_EMAIL_SERVICE | Cleaning_Email_Notification | X15       | Email not sent                     | Preparing email to manager@example.com \| Move-out: No                                        | CLEANING_SERVICE   |
+| 3/6/2026 10:22:50  | CLEANING_EMAIL_SERVICE | Cleaning_Email_Sent        | X15       | Email pending                      | Email sent to manager@example.com \| Subject: Cleaning Date Updated - Cleaning!X15 \| Type: Regular Cleaning | CLEANING_SERVICE   |
+| 3/6/2026 11:05:12  | CLEANING_EMAIL_SERVICE | Cleaning_Email_Error       | X20       | Valid email expected               | Invalid email format: invalid-email - Email skipped                                           | CLEANING_SERVICE   |
+| 3/6/2026 11:10:22  | CLEANING_EMAIL_SERVICE | Cleaning_Email_Error       | X25       | Email sending attempted            | Failed to send email to bounced@example.com: Mail delivery failed                             | CLEANING_SERVICE   |
 | 3/3/2026 11:20:30  | LEASE_SERVICE | Inventory            | D15:U15   | Tenant: , Status: Available | Tenant: John Smith, Start: 3/1/2026, Rent: $1200, Prorate: $1200, Status: Occupied     | LEASE_SERVICE |
 | 3/3/2026 11:20:32  | LEASE_SERVICE | Cleaning             | AD10:AE10 | Tenant: , Contact:          | Room 1: Tenant: John Smith, Contact: 5551234567                                        | LEASE_SERVICE |
 | 3/3/2026 11:20:34  | LEASE_SERVICE | Rent Tracker         | D25:H25   | Tenant: , Rent:             | Room 1: Tenant: John Smith, Rent: $1200, Email: john@example.com, Contact: 5551234567  | LEASE_SERVICE |
@@ -258,9 +286,29 @@ Lease command examples:
 When working with the Cleaning sheet, the system provides automated functionality:
 
 - **Date Column**: Column X is monitored for cleaning date changes
-- **Color Formatting**: When a date is changed in Column X, the cell is automatically formatted with a light blue background
+- **Color Formatting**: When a date is changed in Column X, the cell is automatically formatted based on move-out status:
+  - **Move-out cleaning** (`--moveout` flag): Light blue background (`#caedfb`)
+  - **Regular cleaning** (default): Yellow background
 - **Email Notifications**: When a date changes, an email notification is sent to the contact email found in the 'Contacts' column for that specific row
 - **Contact Lookup**: The system identifies the correct contact by finding the 'Contacts' column in row 1 and extracting the email from the same row as the date change
+- **Move-out Status**: Email notifications include whether the cleaning is a move-out or regular cleaning
+
+### Write Command with Move-out Flag
+
+When updating cleaning dates using the `write` command, you can specify if it's a move-out cleaning:
+
+```bash
+# Regular cleaning date update (yellow cell color)
+node scripts/sheets-cli.js write <spreadsheetId> "Cleaning!X10" "2026-03-15"
+
+# Move-out cleaning date update (light blue cell color)
+node scripts/sheets-cli.js write <spreadsheetId> "Cleaning!X10" "2026-03-15" --moveout
+```
+
+**User Interaction**: Before changing a cleaning date, the system should ask the user:
+- "Is this a move-out cleaning? (yes/no)"
+- If yes/true: Apply light blue color and mark as move-out in email notification
+- If no/false: Apply yellow color and mark as regular cleaning in email notification
 
 ## Bulk Updates Cleaning Command
 

@@ -173,7 +173,8 @@ async function allUpdatesCleaning({ sheets, args, flags, command, isMutation }) 
       spreadsheetId,
       cell,
       change.oldDate,
-      change.newDate
+      change.newDate,
+      false // isMoveout defaults to false for batch updates
     );
   }
 

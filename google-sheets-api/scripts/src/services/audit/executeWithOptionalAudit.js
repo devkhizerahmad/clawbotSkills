@@ -48,7 +48,7 @@ async function executeWithOptionalAudit({
         cell: range,
         oldValue,
         newValue,
-        source: 'SYTEM',
+        source: 'SYSTEM',
       });
     }
 
