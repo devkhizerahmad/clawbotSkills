@@ -66,6 +66,8 @@ const HELP_TEXT = `
     unhighlight <spreadsheetId> <range>
     lease <spreadsheetId> <leaseDetailsText>
     add-apartment <apartmentName>
+    reconciliation-report [spreadsheetId]
+
 
   Formatting and layout:
     format <spreadsheetId> <range> <formatJsonOr@file>
