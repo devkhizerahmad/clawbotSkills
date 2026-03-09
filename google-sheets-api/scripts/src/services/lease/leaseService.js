@@ -9,30 +9,19 @@ const { logAudit } = require('../audit/logAudit');
  * @param {string} params.spreadsheetId
  * @param {Object} params.data - Lease data (tenantName, propertyAddress, rent, proRateRent, startDate, endDate, room, contact, email)
  */
-async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEASE_SERVICE' }) {
+async function updateLeaseSheets({ sheets, spreadsheetId, data }) {
   const {
     tenantName,
     propertyAddress: apartment,
     rent: amount,
     proRateRent: prorate,
     leaseStartDate: startDate,
-    leaseEndDate: endDate,
     room,
     contact,
     email,
   } = data;
 
   const sheetName = 'Inventory';
-
-  // Audit log for lease operation start
-  await logAudit({
-    user: auditUser,
-    sheet: 'Lease_Operation',
-    cell: 'N/A',
-    oldValue: 'N/A',
-    newValue: `Starting lease operation for ${tenantName} - Apartment: ${apartment}, Room: ${room || 'N/A'}, Rent: $${amount}, Period: ${startDate} to ${endDate || 'N/A'}`,
-    source: 'LEASE_SERVICE',
-  });
 
   // 1. Search for the address in the Inventory sheet
   console.log(`Searching for apartment: ${apartment} in ${sheetName}...`);
@@ -64,16 +53,6 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
     `Found apartment at row ${rowIndex}. Updating Inventory Sheet...`,
   );
 
-  // Get current values before updating for audit log
-  const currentValuesResp = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${sheetName}!D${rowIndex}:U${rowIndex}`,
-  });
-  const currentValues = currentValuesResp.data.values?.[0] || [];
-  const oldValueStr = currentValues.length > 0 
-    ? `Tenant: ${currentValues[0] || 'N/A'}, Status: ${currentValues[4] || 'N/A'}`
-    : 'No data';
-
   // 2. Update Inventory Sheet
   // Column U is "Status", E is "Availability"
   const updates = [
@@ -90,16 +69,6 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
       valueInputOption: 'USER_ENTERED',
       data: updates,
     },
-  });
-
-  // Audit Log for Inventory Sheet Update
-  await logAudit({
-    user: auditUser,
-    sheet: sheetName,
-    cell: `D${rowIndex}:U${rowIndex}`,
-    oldValue: oldValueStr,
-    newValue: `Tenant: ${tenantName}, Start: ${startDate}, Rent: $${amount}, Prorate: $${prorate}, Status: Occupied`,
-    source: 'LEASE_SERVICE',
   });
 
   // --- Update Cleaning Sheet ---
@@ -131,17 +100,6 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
       if (roomNum >= 1 && roomNum <= 3) {
         const tCol = tenantColLetters[roomNum - 1];
         const cCol = contactColLetters[roomNum - 1];
-        
-        // Get current values for audit log
-        const cleaningCurrentResp = await sheets.spreadsheets.values.get({
-          spreadsheetId,
-          range: `${cleaningSheetName}!${tCol}${cleaningRowIndex}:${cCol}${cleaningRowIndex}`,
-        });
-        const cleaningCurrentValues = cleaningCurrentResp.data.values?.[0] || [];
-        const cleaningOldValueStr = cleaningCurrentValues.length > 0
-          ? `Tenant: ${cleaningCurrentValues[0] || 'N/A'}, Contact: ${cleaningCurrentValues[1] || 'N/A'}`
-          : 'No data';
-        
         await sheets.spreadsheets.values.batchUpdate({
           spreadsheetId,
           requestBody: {
@@ -157,16 +115,6 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
               },
             ],
           },
-        });
-        
-        // Audit Log for Cleaning Sheet Update
-        await logAudit({
-          user: auditUser,
-          sheet: cleaningSheetName,
-          cell: `${tCol}${cleaningRowIndex}:${cCol}${cleaningRowIndex}`,
-          oldValue: cleaningOldValueStr,
-          newValue: `Room ${room}: Tenant: ${tenantName}, Contact: ${contactVal}`,
-          source: 'LEASE_SERVICE',
         });
       }
     }
@@ -197,18 +145,6 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
 
     if (rentRowIndex !== -1) {
       console.log(`Updating Rent Tracker sheet row ${rentRowIndex}...`);
-      
-      // Get current values for audit log
-      const rentCurrentResp = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: `${rentSheetName}!D${rentRowIndex}:H${rentRowIndex}`,
-      });
-      const rentCurrentValues = rentCurrentResp.data.values?.[0] || [];
-      const rentOldValueStr = rentCurrentValues.length > 0
-        ? `Tenant: ${rentCurrentValues[0] || 'N/A'}, Rent: ${rentCurrentValues[1] || 'N/A'}`
-        : 'No data';
-      
-      // D: Who, E: Rent, G: Email, H: Phone
       await sheets.spreadsheets.values.batchUpdate({
         spreadsheetId,
         requestBody: {
@@ -232,16 +168,6 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
             },
           ],
         },
-      });
-      
-      // Audit Log for Rent Tracker Sheet Update
-      await logAudit({
-        user: auditUser,
-        sheet: rentSheetName,
-        cell: `D${rentRowIndex}:H${rentRowIndex}`,
-        oldValue: rentOldValueStr,
-        newValue: `Room ${room}: Tenant: ${tenantName}, Rent: $${amount}, Email: ${email || 'N/A'}, Contact: ${contact || 'N/A'}`,
-        source: 'LEASE_SERVICE',
       });
     }
   } catch (err) {
@@ -278,18 +204,6 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
 
     if (invDataRowIndex !== -1) {
       console.log(`Updating Inventory Data sheet row ${invDataRowIndex}...`);
-      
-      // Get current values for audit log
-      const invDataCurrentResp = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: `${invDataSheetName}!D${invDataRowIndex}:E${invDataRowIndex}`,
-      });
-      const invDataCurrentValues = invDataCurrentResp.data.values?.[0] || [];
-      const invDataOldValueStr = invDataCurrentValues.length > 0
-        ? `Tenant: ${invDataCurrentValues[0] || 'N/A'}, Rent: ${invDataCurrentValues[1] || 'N/A'}`
-        : 'No data';
-      
-      // D: Who (column 4), E: Total Rent (column 5)
       await sheets.spreadsheets.values.batchUpdate({
         spreadsheetId,
         requestBody: {
@@ -306,28 +220,17 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
           ],
         },
       });
-      
-      // Audit Log for Inventory Data Sheet Update
-      await logAudit({
-        user: auditUser,
-        sheet: invDataSheetName,
-        cell: `D${invDataRowIndex}:E${invDataRowIndex}`,
-        oldValue: invDataOldValueStr,
-        newValue: `Room ${room}: Tenant: ${tenantName}, Rent: $${amount}`,
-        source: 'LEASE_SERVICE',
-      });
     }
   } catch (err) {
     console.error('Failed to update Inventory Data sheet:', err.message);
   }
 
-  // Final Audit Log for successful lease operation
-  await logAudit({
-    user: auditUser,
-    sheet: 'Lease_Completion',
-    cell: 'N/A',
-    oldValue: 'Operation Started',
-    newValue: `Lease completed successfully for ${tenantName} - Apartment: ${apartment}, Room: ${room || 'N/A'}, Rent: $${amount}, Period: ${startDate} to ${endDate || 'N/A'}`,
+  // 3. Audit Log
+  await logAudit(sheets, spreadsheetId, {
+    sheet: sheetName,
+    cell: `D${rowIndex}:U${rowIndex}`,
+    oldValue: 'Available',
+    newValue: `Leased to ${tenantName} ($${amount})`,
     source: 'LEASE_SERVICE',
   });
 

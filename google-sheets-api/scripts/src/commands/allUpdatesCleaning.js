@@ -1,5 +1,7 @@
 'use strict';
 
+const { jsonFromArg } = require('../utils/jsonFromArg');
+const { getSheetIdByName } = require('../services/sheets/getSheetIdByName');
 const { formatCleaningDateCell } = require('../services/email/formatCleaningDateCell');
 const { CLEANING_SPREADSHEET_ID, CLEANING_SHEET_NAME, CLEANING_DATE_COLUMN } = require('../config');
 const { getSheetsClient } = require('../auth');
@@ -130,25 +132,12 @@ async function allUpdatesCleaning({ sheets, args, flags, command, isMutation }) 
     requestBody: { values: updatedValues },
   });
 
-  if (changes.length === 0) {
-    await logAudit({
-      user: 'ASSISTANT',
-      sheet: CLEANING_SHEET_NAME,
-      cell: range,
-      oldValue: 'No effective date changes',
-      newValue: `${operation} ${amount} ${unit} attempted`,
-      source: 'allUpdatesCleaning',
-    });
-  }
-
   // Log granular per-row audit entries
   if (changes.length > 0) {
     const affectedCells = changes.map(change => `${CLEANING_DATE_COLUMN}${change.row}`).join(', ');
-    const oldValues = values.map(v => v[0]).join(', ');
-    const newValues = updatedValues.map(v => v[0]).join(', ');
+    const oldValues = changes.map(change => change.oldDate).join(', ');
+    const newValues = changes.map(change => change.newDate).join(', ');
 
-    //  const oldValues = changes.map(change => change.oldDate).join(', ');
-    // const newValues = changes.map(change => change.newDate).join(', ');
     try {
       await logAudit({
         user: 'ASSISTANT',
@@ -173,8 +162,7 @@ async function allUpdatesCleaning({ sheets, args, flags, command, isMutation }) 
       spreadsheetId,
       cell,
       change.oldDate,
-      change.newDate,
-      false // isMoveout defaults to false for batch updates
+      change.newDate
     );
   }
 
