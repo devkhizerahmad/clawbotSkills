@@ -13,7 +13,7 @@ async function addSheet({ sheets, args, command }) {
     command,
     spreadsheetId,
     requestsRaw: requests,
-    // No range because this  
+    // No range because   
     execute: () =>
       sheets.spreadsheets.batchUpdate({
         spreadsheetId,
