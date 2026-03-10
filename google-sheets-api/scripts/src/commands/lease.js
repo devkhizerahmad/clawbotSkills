@@ -5,6 +5,7 @@ const {
   generateAgreementPdf,
 } = require('../services/generateAgreement/generateAgreement');
 const { sendAgreementEmail } = require('../services/email/sendAgreementEmail');
+const { saveLeaseContract } = require('../services/mongodb/mongodbService');
 const { INVENTORY_SPREADSHEET_ID } = require('../config');
 
 async function lease({ sheets, args, flags, command }) {
@@ -97,7 +98,7 @@ async function lease({ sheets, args, flags, command }) {
   );
   const email = emailMatch?.[1]?.trim();
 
-  const prorate = prorateRaw || amount;
+  const prorate = prorateRaw;
 
   if (!tenantName || !apartment || !startDate || !endDate || !amount) {
     throw new Error(
@@ -165,6 +166,25 @@ async function lease({ sheets, args, flags, command }) {
     cell: 'N/A',
     oldValue: 'PDF Generation Started',
     newValue: `PDF generated successfully: ${pdfPath}`,
+    source: 'LEASE_CMD',
+  });
+
+  // 1.5. Add Record to MongoDB as requested
+  console.log('Adding record to MongoDB...');
+  await saveLeaseContract({
+    tenantName,
+    email,
+    pdfPath,
+    signed: false,
+  });
+
+  // Audit log for MongoDB record creation
+  await logAudit({
+    user: auditUser,
+    sheet: 'Lease_MongoDB',
+    cell: 'N/A',
+    oldValue: 'N/A',
+    newValue: `Lease contract record added to MongoDB for ${tenantName}`,
     source: 'LEASE_CMD',
   });
 
