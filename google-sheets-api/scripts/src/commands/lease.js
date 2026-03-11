@@ -5,7 +5,15 @@ const {
   generateAgreementPdf,
 } = require('../services/generateAgreement/generateAgreement');
 const { sendAgreementEmail } = require('../services/email/sendAgreementEmail');
-const { saveLeaseContract } = require('../services/mongodb/mongodbService');
+const {
+  saveLeaseContract,
+  emailExists,
+  saveContractEmail,
+} = require('../services/mongodb/mongodbService');
+const {
+  hasEmailInLocal,
+  addEmailInLocal,
+} = require('../services/email/registerEmail');
 const { INVENTORY_SPREADSHEET_ID } = require('../config');
 
 async function lease({ sheets, args, flags, command }) {
@@ -117,6 +125,15 @@ async function lease({ sheets, args, flags, command }) {
   console.log('Contact:', contact);
   console.log('Email:', email);
 
+  const emailAlreadyExists = await emailExists(email);
+  console.log('Email already exists:', emailAlreadyExists);
+  const emailAlreadyInLocal = hasEmailInLocal(email);
+  console.log('Email already in local:', emailAlreadyInLocal);
+  if (emailAlreadyExists || emailAlreadyInLocal) {
+    console.log('Email already exists or in local, skipping...');
+    return;
+  }
+
   // Audit log for parsed lease details
   await logAudit({
     user: auditUser,
@@ -171,12 +188,14 @@ async function lease({ sheets, args, flags, command }) {
 
   // 1.5. Add Record to MongoDB as requested
   console.log('Adding record to MongoDB...');
-  await saveLeaseContract({
+  const leaseId = await saveLeaseContract({
     tenantName,
     email,
     pdfPath,
     signed: false,
   });
+
+  console.log('Lease ID:', leaseId);
 
   // Audit log for MongoDB record creation
   await logAudit({
@@ -189,7 +208,7 @@ async function lease({ sheets, args, flags, command }) {
   });
 
   // 2. Send Email
-  if (email) {
+  if (email && !emailAlreadyExists && !emailAlreadyInLocal) {
     console.log(`Sending agreement to ${email}...`);
 
     // // Audit log for email sending
@@ -202,7 +221,13 @@ async function lease({ sheets, args, flags, command }) {
     //   source: 'LEASE_CMD',
     // });
 
+    console.log('Sending agreement to ' + email);
     await sendAgreementEmail(email, tenantName, pdfPath);
+    console.log('Saving contract email to MongoDB...');
+    await saveContractEmail(leaseId, email);
+    console.log('Adding email to local registry...');
+    addEmailInLocal(email);
+    console.log('Email sent successfully');
 
     // Audit log for email sent
     await logAudit({
