@@ -50,16 +50,6 @@ async function formatCleaningDateCell(
   console.log("Row number:", rowNumber);
   console.log("Column:", columnMatch[1].toUpperCase());
 
-  // Audit log for starting the formatting operation
-  await logAudit({
-    user: 'CLEANING_FORMATTER',
-    sheet: 'Cleaning_Date_Format',
-    cell: cell,
-    oldValue: oldValue || '(empty)',
-    newValue: `${newValue} | Move-out: ${isMoveout ? 'Yes' : 'No'}`,
-    source: 'CLEANING_SERVICE',
-  });
-
   // Get sheet ID
   const sheetId = await getSheetIdByName(
     sheets,
@@ -98,25 +88,21 @@ async function formatCleaningDateCell(
       },
     });
 
-    // Audit log for successful color formatting
-    await logAudit({
-      user: 'CLEANING_FORMATTER',
-      sheet: CLEANING_SHEET_NAME,
-      cell: `X${rowNumber}`,
-      oldValue: 'Previous color',
-      newValue: `Applied ${colorDescription} background (Move-out: ${isMoveout ? 'Yes' : 'No'})`,
-      source: 'CLEANING_SERVICE',
-    });
+    // Audit log for successful color formatting (mutation complete)
+    try {
+      await logAudit({
+        user: 'CLEANING_FORMATTER',
+        sheet: CLEANING_SHEET_NAME,
+        cell: `X${rowNumber}`,
+        oldValue: 'No color applied',
+        newValue: `Applied ${colorDescription} background (Move-out: ${isMoveout ? 'Yes' : 'No'})`,
+        source: 'CLEANING_SERVICE',
+      });
+    } catch (err) {
+      console.warn('Audit log failed:', err.message);
+    }
   } catch (error) {
-    // Audit log for formatting error
-    await logAudit({
-      user: 'CLEANING_FORMATTER',
-      sheet: 'Cleaning_Format_Error',
-      cell: `X${rowNumber}`,
-      oldValue: 'Formatting pending',
-      newValue: `Failed to apply color: ${error.message}`,
-      source: 'CLEANING_SERVICE',
-    });
+    console.error('Color formatting failed:', error.message);
     throw error;
   }
 

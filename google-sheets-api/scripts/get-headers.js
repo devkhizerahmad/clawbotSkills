@@ -19,6 +19,7 @@ async function getHeaders() {
     });
     console.log('--- Inventory Headers ---');
     console.log(JSON.stringify(inventory.data.values, null, 2));
+    // Testing changes
     // const inventoryData = await sheets.spreadsheets.values.get({
     //   spreadsheetId,
     //   range: 'Inventory Data!A2:K5',

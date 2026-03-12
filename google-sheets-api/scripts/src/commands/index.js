@@ -26,6 +26,7 @@ const { batch } = require('./batch');
 const { allUpdatesCleaning } = require('./allUpdatesCleaning');
 const { lease } = require('./lease');
 const { addApartment } = require('./addApartment');
+const { reconciliationReport } = require('./reconciliationReport');
 
 module.exports = {
   read,
@@ -53,5 +54,6 @@ module.exports = {
   batch,
   allUpdatesCleaning,
   lease,
-  'Add apartment': addApartment,
+  'add-apartment': addApartment,
+  'generate-reconciliation-report': reconciliationReport,
 };

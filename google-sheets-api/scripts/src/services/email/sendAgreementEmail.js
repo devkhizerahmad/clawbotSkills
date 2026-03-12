@@ -4,6 +4,7 @@ const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
 const { EMAIL_CONFIG } = require('../../config');
+const { logAudit } = require('../audit/logAudit');
 
 async function sendAgreementEmail(recipientEmail, tenantName, pdfPath) {
   // Use provided recipient or default
@@ -11,14 +12,14 @@ async function sendAgreementEmail(recipientEmail, tenantName, pdfPath) {
 
   // Check email config
   if (!EMAIL_CONFIG.user || !EMAIL_CONFIG.pass) {
-    console.log('Email config missing, skipping notification');
+    console.log('Email config missing, skipping notification');    
     return;
   }
 
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(emailTo)) {
-    console.log(`Invalid email address: ${emailTo}, skipping notification`);
+    console.log(`Invalid email address: ${emailTo}, skipping notification`);    
     return;
   }
 
@@ -62,6 +63,20 @@ This is an automated notification from ClawdBot.
   try {
     await transporter.sendMail(mailOptions);
     console.log(`Agreement email sent successfully to: ${emailTo}`);
+    
+    // Audit log for successful email send (mutation complete)
+    try {
+      await logAudit({
+        user: 'LEASE_SERVICE',
+        sheet: 'Lease_Email',
+        cell: 'N/A',
+        oldValue: 'Agreement not sent',
+        newValue: `Lease agreement sent to ${emailTo} for ${tenantName}`,
+        source: 'AGREEMENT_EMAIL',
+      });
+    } catch (err) {
+      console.warn('Audit log failed:', err.message);
+    }
   } catch (error) {
     console.error('Email send failed:', error.message);
   }

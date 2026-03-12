@@ -72,6 +72,10 @@ Supported sources (first match wins):
   3. Updates the `Inventory Data` and `Rent Tracker` sheets.
   4. Applies necessary formatting and borders.
   5. Skips the `Cleaning` sheet.
+- **Generating Reconciliation Report**: If the user asks to "Generate Reconciliation Report", use the `node scripts/sheets-cli.js generate-reconciliation-report` command. This command automatically:
+  1. Fetches data from the `Rent Reconciliation` sheet.
+  2. Generates a PDF report with the reconciliation data.
+  3. Send the PDF report to the user.
 
 ## Input conventions
 
@@ -96,7 +100,7 @@ Date Operations:
 Data:
 
 - `read`, `write`, `append`, `clear`, `batchGet`, `batchWrite`
-- `highlight`, `unhighlight`, `Add apartment`
+- `highlight`, `unhighlight`, `Add apartment`, `generate-reconciliation-report`
 - `lease`
 
 Formatting:
@@ -121,10 +125,10 @@ Advanced:
 
 ### Audit Log Location
 
-| Property       | Value                                           |
-| -------------- | ----------------------------------------------- |
-| Spreadsheet ID | `1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU`  |
-| Sheet Name     | `Audit_Log`                                     |
+| Property       | Value                                          |
+| -------------- | ---------------------------------------------- |
+| Spreadsheet ID | `1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU` |
+| Sheet Name     | `Audit_Log`                                    |
 
 ### Audit Log Structure (Columns A-G)
 
@@ -238,46 +242,46 @@ Basic operations:
 
 Add apartment command examples:
 
-| Timestamp          | User      | Sheet                | Cell         | Old Value                          | New Value                                                                    | Source               |
-| ------------------ | --------- | -------------------- | ------------ | ---------------------------------- | ---------------------------------------------------------------------------- | -------------------- |
-| 3/3/2026 10:15:23  | CLI_Admin | Operation_Start      | N/A          | N/A                                | Starting addApartment operation for: The Clarendon                           | addApartment Command |
-| 3/3/2026 10:15:25  | CLI_Admin | Apartment_Fetch      | N/A          | Not Found                          | Found apartment: The Clarendon with 5 rooms                                  | addApartment Command |
-| 3/3/2026 10:15:28  | CLI_Admin | Inventory            | Rows 10-14   | 3 rooms                            | 5 rooms (Updated) - Apartment: The Clarendon, Rooms: 101, 102, 103, 104, 105 | addApartment Command |
-| 3/3/2026 10:15:32  | CLI_Admin | Inventory Data       | Rows 45-47   | 3 rooms - Apartment: The Clarendon | 5 rooms (Updated) - Apartment: The Clarendon, Rooms: 101, 102, 103, 104, 105 | addApartment Command |
-| 3/3/2026 10:15:35  | CLI_Admin | Rent Tracker         | Rows 52-54   | 3 rooms - Apartment: The Clarendon | 5 rooms (Updated) - Apartment: The Clarendon, Rooms: 101, 102, 103, 104, 105 | addApartment Command |
-| 3/3/2026 10:15:36  | CLI_Admin | Operation_Completion | N/A          | Operation Started                  | Operation completed successfully for The Clarendon with 5 rooms              | addApartment Command |
+| Timestamp         | User      | Sheet                | Cell       | Old Value                          | New Value                                                                    | Source               |
+| ----------------- | --------- | -------------------- | ---------- | ---------------------------------- | ---------------------------------------------------------------------------- | -------------------- |
+| 3/3/2026 10:15:23 | CLI_Admin | Operation_Start      | N/A        | N/A                                | Starting addApartment operation for: The Clarendon                           | addApartment Command |
+| 3/3/2026 10:15:25 | CLI_Admin | Apartment_Fetch      | N/A        | Not Found                          | Found apartment: The Clarendon with 5 rooms                                  | addApartment Command |
+| 3/3/2026 10:15:28 | CLI_Admin | Inventory            | Rows 10-14 | 3 rooms                            | 5 rooms (Updated) - Apartment: The Clarendon, Rooms: 101, 102, 103, 104, 105 | addApartment Command |
+| 3/3/2026 10:15:32 | CLI_Admin | Inventory Data       | Rows 45-47 | 3 rooms - Apartment: The Clarendon | 5 rooms (Updated) - Apartment: The Clarendon, Rooms: 101, 102, 103, 104, 105 | addApartment Command |
+| 3/3/2026 10:15:35 | CLI_Admin | Rent Tracker         | Rows 52-54 | 3 rooms - Apartment: The Clarendon | 5 rooms (Updated) - Apartment: The Clarendon, Rooms: 101, 102, 103, 104, 105 | addApartment Command |
+| 3/3/2026 10:15:36 | CLI_Admin | Operation_Completion | N/A        | Operation Started                  | Operation completed successfully for The Clarendon with 5 rooms              | addApartment Command |
 
 Lease command examples:
 
-| Timestamp          | User          | Sheet                | Cell      | Old Value                   | New Value                                                                              | Source        |
-| ------------------ | ------------- | -------------------- | --------- | --------------------------- | -------------------------------------------------------------------------------------- | ------------- |
-| 3/3/2026 11:20:15  | LEASE_CMD     | Lease_Start          | N/A       | N/A                         | Starting lease command with details: John Smith has leased...                          | LEASE_CMD     |
-| 3/3/2026 11:20:16  | LEASE_CMD     | Lease_Details        | N/A       | Raw Text                    | Tenant: John Smith, Apartment: The Clarendon, Room: 101, Rent: $1200...                | LEASE_CMD     |
-| 3/3/2026 11:20:18  | LEASE_CMD     | Lease_PDF            | N/A       | N/A                         | Generating lease agreement PDF for John Smith - Apartment: The Clarendon...            | LEASE_CMD     |
-| 3/3/2026 11:20:22  | LEASE_CMD     | Lease_PDF            | N/A       | PDF Generation Started      | PDF generated successfully: /home/user/Downloads/John Smith Sublease...                | LEASE_CMD     |
-| 3/3/2026 11:20:23  | LEASE_CMD     | Lease_Email          | N/A       | N/A                         | Sending lease agreement to john@example.com for John Smith                             | LEASE_CMD     |
-| 3/3/2026 11:20:25  | LEASE_CMD     | Lease_Email          | N/A       | Email Not Sent              | Lease agreement sent successfully to john@example.com for John Smith                   | LEASE_CMD     |
-| 3/3/2026 11:20:28  | LEASE_SERVICE | Lease_Operation      | N/A       | N/A                         | Starting lease operation for John Smith - Apartment: The Clarendon...                  | LEASE_SERVICE |
+| Timestamp         | User          | Sheet           | Cell | Old Value              | New Value                                                                   | Source        |
+| ----------------- | ------------- | --------------- | ---- | ---------------------- | --------------------------------------------------------------------------- | ------------- |
+| 3/3/2026 11:20:15 | LEASE_CMD     | Lease_Start     | N/A  | N/A                    | Starting lease command with details: John Smith has leased...               | LEASE_CMD     |
+| 3/3/2026 11:20:16 | LEASE_CMD     | Lease_Details   | N/A  | Raw Text               | Tenant: John Smith, Apartment: The Clarendon, Room: 101, Rent: $1200...     | LEASE_CMD     |
+| 3/3/2026 11:20:18 | LEASE_CMD     | Lease_PDF       | N/A  | N/A                    | Generating lease agreement PDF for John Smith - Apartment: The Clarendon... | LEASE_CMD     |
+| 3/3/2026 11:20:22 | LEASE_CMD     | Lease_PDF       | N/A  | PDF Generation Started | PDF generated successfully: /home/user/Downloads/John Smith Sublease...     | LEASE_CMD     |
+| 3/3/2026 11:20:23 | LEASE_CMD     | Lease_Email     | N/A  | N/A                    | Sending lease agreement to john@example.com for John Smith                  | LEASE_CMD     |
+| 3/3/2026 11:20:25 | LEASE_CMD     | Lease_Email     | N/A  | Email Not Sent         | Lease agreement sent successfully to john@example.com for John Smith        | LEASE_CMD     |
+| 3/3/2026 11:20:28 | LEASE_SERVICE | Lease_Operation | N/A  | N/A                    | Starting lease operation for John Smith - Apartment: The Clarendon...       | LEASE_SERVICE |
 
 Cleaning date automation examples (with isMoveout flag):
 
-| Timestamp          | User                | Sheet                      | Cell         | Old Value                          | New Value                                                                                     | Source             |
-| ------------------ | ------------------- | -------------------------- | ------------ | ---------------------------------- | --------------------------------------------------------------------------------------------- | ------------------ |
-| 3/6/2026 09:15:30  | CLEANING_FORMATTER  | Cleaning_Date_Format       | Cleaning!X10 | 2026-03-01 (empty)                 | 2026-03-15 \| Move-out: Yes                                                                   | CLEANING_SERVICE   |
-| 3/6/2026 09:15:32  | CLEANING_FORMATTER  | Cleaning                   | X10          | Previous color                     | Applied Light Blue (#caedfb) background (Move-out: Yes)                                       | CLEANING_SERVICE   |
-| 3/6/2026 09:15:33  | CLEANING_EMAIL_SERVICE | Cleaning_Email_Notification | X10       | Email not sent                     | Preparing email to tenant@example.com \| Move-out: Yes                                        | CLEANING_SERVICE   |
-| 3/6/2026 09:15:35  | CLEANING_EMAIL_SERVICE | Cleaning_Email_Sent        | X10       | Email pending                      | Email sent to tenant@example.com \| Subject: Cleaning Date Updated - Cleaning!X10 (Move-out) \| Type: Move-out Cleaning | CLEANING_SERVICE   |
-| 3/6/2026 10:22:45  | CLEANING_FORMATTER  | Cleaning_Date_Format       | Cleaning!X15 | 2026-03-10                         | 2026-03-20 \| Move-out: No                                                                    | CLEANING_SERVICE   |
-| 3/6/2026 10:22:47  | CLEANING_FORMATTER  | Cleaning                   | X15          | Previous color                     | Applied Yellow background (Move-out: No)                                                      | CLEANING_SERVICE   |
-| 3/6/2026 10:22:48  | CLEANING_EMAIL_SERVICE | Cleaning_Email_Notification | X15       | Email not sent                     | Preparing email to manager@example.com \| Move-out: No                                        | CLEANING_SERVICE   |
-| 3/6/2026 10:22:50  | CLEANING_EMAIL_SERVICE | Cleaning_Email_Sent        | X15       | Email pending                      | Email sent to manager@example.com \| Subject: Cleaning Date Updated - Cleaning!X15 \| Type: Regular Cleaning | CLEANING_SERVICE   |
-| 3/6/2026 11:05:12  | CLEANING_EMAIL_SERVICE | Cleaning_Email_Error       | X20       | Valid email expected               | Invalid email format: invalid-email - Email skipped                                           | CLEANING_SERVICE   |
-| 3/6/2026 11:10:22  | CLEANING_EMAIL_SERVICE | Cleaning_Email_Error       | X25       | Email sending attempted            | Failed to send email to bounced@example.com: Mail delivery failed                             | CLEANING_SERVICE   |
-| 3/3/2026 11:20:30  | LEASE_SERVICE | Inventory            | D15:U15   | Tenant: , Status: Available | Tenant: John Smith, Start: 3/1/2026, Rent: $1200, Prorate: $1200, Status: Occupied     | LEASE_SERVICE |
-| 3/3/2026 11:20:32  | LEASE_SERVICE | Cleaning             | AD10:AE10 | Tenant: , Contact:          | Room 1: Tenant: John Smith, Contact: 5551234567                                        | LEASE_SERVICE |
-| 3/3/2026 11:20:34  | LEASE_SERVICE | Rent Tracker         | D25:H25   | Tenant: , Rent:             | Room 1: Tenant: John Smith, Rent: $1200, Email: john@example.com, Contact: 5551234567  | LEASE_SERVICE |
-| 3/3/2026 11:20:36  | LEASE_SERVICE | Inventory Data       | D35:E35   | Tenant: , Rent:             | Room 1: Tenant: John Smith, Rent: $1200                                                | LEASE_SERVICE |
-| 3/3/2026 11:20:37  | LEASE_SERVICE | Lease_Completion     | N/A       | Operation Started           | Lease completed successfully for John Smith - Apartment: The Clarendon...              | LEASE_SERVICE |
+| Timestamp         | User                   | Sheet                       | Cell         | Old Value                   | New Value                                                                                                               | Source           |
+| ----------------- | ---------------------- | --------------------------- | ------------ | --------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| 3/6/2026 09:15:30 | CLEANING_FORMATTER     | Cleaning_Date_Format        | Cleaning!X10 | 2026-03-01 (empty)          | 2026-03-15 \| Move-out: Yes                                                                                             | CLEANING_SERVICE |
+| 3/6/2026 09:15:32 | CLEANING_FORMATTER     | Cleaning                    | X10          | Previous color              | Applied Light Blue (#caedfb) background (Move-out: Yes)                                                                 | CLEANING_SERVICE |
+| 3/6/2026 09:15:33 | CLEANING_EMAIL_SERVICE | Cleaning_Email_Notification | X10          | Email not sent              | Preparing email to tenant@example.com \| Move-out: Yes                                                                  | CLEANING_SERVICE |
+| 3/6/2026 09:15:35 | CLEANING_EMAIL_SERVICE | Cleaning_Email_Sent         | X10          | Email pending               | Email sent to tenant@example.com \| Subject: Cleaning Date Updated - Cleaning!X10 (Move-out) \| Type: Move-out Cleaning | CLEANING_SERVICE |
+| 3/6/2026 10:22:45 | CLEANING_FORMATTER     | Cleaning_Date_Format        | Cleaning!X15 | 2026-03-10                  | 2026-03-20 \| Move-out: No                                                                                              | CLEANING_SERVICE |
+| 3/6/2026 10:22:47 | CLEANING_FORMATTER     | Cleaning                    | X15          | Previous color              | Applied Yellow background (Move-out: No)                                                                                | CLEANING_SERVICE |
+| 3/6/2026 10:22:48 | CLEANING_EMAIL_SERVICE | Cleaning_Email_Notification | X15          | Email not sent              | Preparing email to manager@example.com \| Move-out: No                                                                  | CLEANING_SERVICE |
+| 3/6/2026 10:22:50 | CLEANING_EMAIL_SERVICE | Cleaning_Email_Sent         | X15          | Email pending               | Email sent to manager@example.com \| Subject: Cleaning Date Updated - Cleaning!X15 \| Type: Regular Cleaning            | CLEANING_SERVICE |
+| 3/6/2026 11:05:12 | CLEANING_EMAIL_SERVICE | Cleaning_Email_Error        | X20          | Valid email expected        | Invalid email format: invalid-email - Email skipped                                                                     | CLEANING_SERVICE |
+| 3/6/2026 11:10:22 | CLEANING_EMAIL_SERVICE | Cleaning_Email_Error        | X25          | Email sending attempted     | Failed to send email to bounced@example.com: Mail delivery failed                                                       | CLEANING_SERVICE |
+| 3/3/2026 11:20:30 | LEASE_SERVICE          | Inventory                   | D15:U15      | Tenant: , Status: Available | Tenant: John Smith, Start: 3/1/2026, Rent: $1200, Prorate: $1200, Status: Occupied                                      | LEASE_SERVICE    |
+| 3/3/2026 11:20:32 | LEASE_SERVICE          | Cleaning                    | AD10:AE10    | Tenant: , Contact:          | Room 1: Tenant: John Smith, Contact: 5551234567                                                                         | LEASE_SERVICE    |
+| 3/3/2026 11:20:34 | LEASE_SERVICE          | Rent Tracker                | D25:H25      | Tenant: , Rent:             | Room 1: Tenant: John Smith, Rent: $1200, Email: john@example.com, Contact: 5551234567                                   | LEASE_SERVICE    |
+| 3/3/2026 11:20:36 | LEASE_SERVICE          | Inventory Data              | D35:E35      | Tenant: , Rent:             | Room 1: Tenant: John Smith, Rent: $1200                                                                                 | LEASE_SERVICE    |
+| 3/3/2026 11:20:37 | LEASE_SERVICE          | Lease_Completion            | N/A          | Operation Started           | Lease completed successfully for John Smith - Apartment: The Clarendon...                                               | LEASE_SERVICE    |
 
 ---
 
@@ -306,6 +310,7 @@ node scripts/sheets-cli.js write <spreadsheetId> "Cleaning!X10" "2026-03-15" --m
 ```
 
 **User Interaction**: Before changing a cleaning date, the system should ask the user:
+
 - "Is this a move-out cleaning? (yes/no)"
 - If yes/true: Apply light blue color and mark as move-out in email notification
 - If no/false: Apply yellow color and mark as regular cleaning in email notification
