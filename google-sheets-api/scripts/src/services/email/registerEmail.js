@@ -1,34 +1,67 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+// Global in-memory registry
+const sentEmails = new Set();
 
-const CACHE_FILE = path.join(__dirname, 'email-cache.json');
+// Store timeout references
+const emailTimers = new Map();
 
-function loadEmails() {
-  if (!fs.existsSync(CACHE_FILE)) return new Set();
-  const data = JSON.parse(fs.readFileSync(CACHE_FILE));
-  return new Set(data);
-}
+// Email TTL (5 minutes)
+const EMAIL_TTL = 5 * 60 * 1000;
 
-function saveEmails(set) {
-  fs.writeFileSync(CACHE_FILE, JSON.stringify([...set], null, 2));
-}
-
+/**
+ * Check if email already exists in registry
+ */
 function hasEmailInLocal(email) {
-  const emails = loadEmails();
-  return emails.has(email);
+  return sentEmails.has(email);
 }
 
+/**
+ * Add email to registry with auto-expiry
+ */
 function addEmailInLocal(email) {
-  const emails = loadEmails();
-  emails.add(email);
-  saveEmails(emails);
+  // Prevent duplicate registration
+  if (sentEmails.has(email)) {
+    console.log(`[EmailRegistry] Email already exists: ${email}`);
+    return;
+  }
 
-  console.log(`[EmailRegistry] Email saved locally: ${email}`);
+  sentEmails.add(email);
+
+  console.log(`[EmailRegistry] Email added to registry: ${email}`); // Start TTL timer
+
+  const timer = setTimeout(() => {
+    sentEmails.delete(email);
+    emailTimers.delete(email);
+
+    console.log(
+      `[EmailRegistry] Email removed from registry after 5 minutes: ${email}`,
+    );
+
+    logAllEmails();
+  }, EMAIL_TTL); // Save timer reference
+
+  emailTimers.set(email, timer);
+}
+
+/**
+ * Get all stored emails
+ */
+function getAllEmails() {
+  return Array.from(sentEmails);
+}
+
+/**
+ * Debug log to see registry contents
+ */
+function logAllEmails() {
+  console.log('[EmailRegistry] Emails currently stored in memory:');
+  console.log(getAllEmails());
 }
 
 module.exports = {
   hasEmailInLocal,
   addEmailInLocal,
+  getAllEmails,
+  logAllEmails,
 };
