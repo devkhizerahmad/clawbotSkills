@@ -11,6 +11,7 @@ async function executeWithAuditForBatch({
   spreadsheetId,
   requestsRaw,
   range, // optional, for fetching old values
+  user = 'ASSISTANT',
   execute,
 }) {
   const sheets = getSheetsClient([WRITE_SCOPE]);
@@ -75,12 +76,12 @@ async function executeWithAuditForBatch({
   const newStr = newValues.join(', ');
   if (oldStr !== newStr || oldValues.length === 0) {
     await logAudit({
-      user: 'ASSISTANT',
+      user: user || 'ASSISTANT',
       sheet: '', // omit sheet name for batch
       cell: newCells.join(', '),
       oldValue: oldStr,
       newValue: newStr,
-      source: 'SYSTEM',
+      source: command || 'SYSTEM',
     });
   }
 

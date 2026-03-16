@@ -39,16 +39,6 @@ async function lease({ sheets, args, flags, command }) {
     throw new Error('Please provide the lease details string.');
   }
 
-  // Audit log for lease operation start
-  await logAudit({
-    user: auditUser,
-    sheet: 'Lease_Start',
-    cell: 'N/A',
-    oldValue: 'N/A',
-    newValue: `Starting lease command with details: ${leaseStr.substring(0, 100)}...`,
-    source: 'LEASE_CMD',
-  });
-
   // Regex Parsing
   // const tenantName = leaseStr.match(/^(.*?) has leased/i)?.[1]?.trim();
   // const apartment =
@@ -125,25 +115,6 @@ async function lease({ sheets, args, flags, command }) {
   console.log('Contact:', contact);
   console.log('Email:', email);
 
-  const emailAlreadyExists = await emailExists(email);
-  console.log('Email already exists:', emailAlreadyExists);
-  const emailAlreadyInLocal = hasEmailInLocal(email);
-  console.log('Email already in local:', emailAlreadyInLocal);
-  if (emailAlreadyExists || emailAlreadyInLocal) {
-    console.log('Email already exists or in local, skipping...');
-    return;
-  }
-
-  // Audit log for parsed lease details
-  await logAudit({
-    user: auditUser,
-    sheet: 'Lease_Details',
-    cell: 'N/A',
-    oldValue: 'Raw Text',
-    newValue: `Tenant: ${tenantName}, Apartment: ${apartment}, Room: ${room || 'N/A'}, Rent: $${amount}, Prorate: $${prorate}, Period: ${startDate} to ${endDate}, Contact: ${contact || 'N/A'}, Email: ${email || 'N/A'}`,
-    source: 'LEASE_CMD',
-  });
-
   // 1. Generate Agreement PDF First
   console.log('Generating agreement PDF...');
   const agreementData = {
@@ -161,67 +132,15 @@ async function lease({ sheets, args, flags, command }) {
     email,
   };
 
-  // Audit log for PDF generation start
-  await logAudit({
-    user: auditUser,
-    sheet: 'Lease_PDF',
-    cell: 'N/A',
-    oldValue: 'Agreement not generated',
-    newValue: `Generating lease agreement PDF for ${tenantName} - Apartment: ${apartment}, Rent: $${amount}, Deposit: $${amount}`,
-    source: 'LEASE_CMD',
-  });
-
   // const addSublesseeSignature =
   //   flags.addSublesseeSignature !== 'false' &&
   //   flags.addSublesseeSignature !== false;
   const pdfPath = await generateAgreementPdf(agreementData, true, false);
 
-  // Audit log for PDF generation completion
-  await logAudit({
-    user: auditUser,
-    sheet: 'Lease_PDF',
-    cell: 'N/A',
-    oldValue: 'PDF generation in progress',
-    newValue: `PDF generated successfully: ${pdfPath}`,
-    source: 'LEASE_CMD',
-  });
-
-  // 1.5. Add Record to MongoDB as requested
-  console.log('Adding record to MongoDB...');
-  const leaseId = await saveLeaseContract({
-    tenantName,
-    email,
-    pdfPath,
-    signed: false,
-  });
-
-  console.log('Lease ID:', leaseId);
-
-  // Audit log for MongoDB record creation
-  await logAudit({
-    user: auditUser,
-    sheet: 'Lease_MongoDB',
-    cell: 'N/A',
-    oldValue: 'N/A',
-    newValue: `Lease contract record added to MongoDB for ${tenantName}`,
-    source: 'LEASE_CMD',
-  });
-
   // 2. Send Email
   if (email && !emailAlreadyExists && !emailAlreadyInLocal) {
     console.log(`Sending agreement to ${email}...`);
 
-    // // Audit log for email sending
-    // await logAudit({
-    //   user: auditUser,
-    //   sheet: 'Lease_Email',
-    //   cell: 'N/A',
-    //   oldValue: 'Email pending',
-    //   newValue: `Sending lease agreement to ${email} for ${tenantName}`,
-    //   source: 'LEASE_CMD',
-    // });
-
-    console.log('Sending agreement to ' + email);
     await sendAgreementEmail(email, tenantName, pdfPath);
     console.log('Saving contract email to MongoDB...');
     await saveContractEmail(leaseId, email);
@@ -234,7 +153,7 @@ async function lease({ sheets, args, flags, command }) {
       user: auditUser,
       sheet: 'Lease_Email',
       cell: 'N/A',
-      oldValue: 'Email queued for sending',
+      oldValue: 'Email not sent',
       newValue: `Lease agreement sent successfully to ${email} for ${tenantName}`,
       source: 'LEASE_CMD',
     });
@@ -251,16 +170,6 @@ async function lease({ sheets, args, flags, command }) {
       source: 'LEASE_CMD',
     });
   }
-
-  // Final audit log for lease operation completion
-  await logAudit({
-    user: auditUser,
-    sheet: 'Lease_Completion',
-    cell: 'N/A',
-    oldValue: 'Operation Started',
-    newValue: `Lease operation completed successfully for ${tenantName} - Apartment: ${apartment}, Room: ${room || 'N/A'}, Rent: $${amount}, PDF: ${pdfPath}`,
-    source: 'LEASE_CMD',
-  });
 
   return {
     success: true,

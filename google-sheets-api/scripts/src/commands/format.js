@@ -11,7 +11,7 @@ const {
   executeWithAuditForBatch,
 } = require('../services/audit/executeWithAuditForBatch');
 
-async function format({ sheets, args }) {
+async function format({ sheets, args, flags }) {
   const [, spreadsheetId, range, formatRaw] = args;
   if (!spreadsheetId || !range || !formatRaw)
     throw new Error(
@@ -26,11 +26,14 @@ async function format({ sheets, args }) {
   const { userEnteredFormat, fields } = buildUserEnteredFormat(formatOptions);
   if (!fields.length) throw new Error('No format fields provided.');
 
+  const auditUser = flags.user || 'FORMAT_CMD';
+
   return executeWithAuditForBatch({
     command: 'format',
     spreadsheetId,
     range,
     requestsRaw: formatOptions,
+    user: auditUser,
     execute: () =>
       sheets.spreadsheets.batchUpdate({
         spreadsheetId,

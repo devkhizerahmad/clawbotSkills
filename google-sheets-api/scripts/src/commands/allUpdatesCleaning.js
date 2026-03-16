@@ -21,6 +21,8 @@ async function allUpdatesCleaning({ sheets, args, flags, command, isMutation }) 
   if (!['days', 'weeks', 'months', 'years'].includes(unit))
     throw new Error('Unit must be "days", "weeks", "months", or "years"');
 
+  const auditUser = flags.user || 'CLEANING_CMD';
+
   // Read the entire X column
   const range = `${CLEANING_SHEET_NAME}!${CLEANING_DATE_COLUMN}:${CLEANING_DATE_COLUMN}`;
 
@@ -124,12 +126,12 @@ async function allUpdatesCleaning({ sheets, args, flags, command, isMutation }) 
 
   if (changes.length === 0) {
     await logAudit({
-      user: 'ASSISTANT',
+      user: auditUser,
       sheet: CLEANING_SHEET_NAME,
       cell: range,
       oldValue: 'No effective date changes',
       newValue: `${operation} ${amount} ${unit} attempted`,
-      source: 'allUpdatesCleaning',
+      source: command || 'allUpdatesCleaning',
     });
   }
 
@@ -143,12 +145,12 @@ async function allUpdatesCleaning({ sheets, args, flags, command, isMutation }) 
     // const newValues = changes.map(change => change.newDate).join(', ');
     try {
       await logAudit({
-        user: 'ASSISTANT',
+        user: auditUser,
         sheet: CLEANING_SHEET_NAME,
         cell: affectedCells,
         oldValue: oldValues,
         newValue: newValues,
-        source: 'allUpdatesCleaning',
+        source: command || 'allUpdatesCleaning',
       });
     } catch (err) {
       console.warn('Audit log failed:', err.message);

@@ -3,11 +3,12 @@
 const { getSheetIdByName } = require('../services/sheets/getSheetIdByName');
 const { logAudit } = require('../services/audit/logAudit');
 
-async function freeze({ sheets, args, command }) {
+async function freeze({ sheets, args, flags, command }) {
   const [, spreadsheetId, sheetName, rowsRaw, colsRaw] = args;
   if (!spreadsheetId || !sheetName)
     throw new Error('Usage: freeze <spreadsheetId> <sheetName> [rows] [cols]');
     
+  const auditUser = flags.user || 'FREEZE_CMD';
   const sheetId = await getSheetIdByName(sheets, spreadsheetId, sheetName);
   const frozenRowCount =
     rowsRaw !== undefined ? parseInt(rowsRaw, 10) : undefined;
@@ -49,12 +50,12 @@ async function freeze({ sheets, args, command }) {
   }
   
   await logAudit({
-    user: 'ASSISTANT',
+    user: auditUser,
     sheet: sheetName,
     cell: 'N/A',
     oldValue: 'Previous freeze settings',
     newValue: `Freeze settings updated: ${freezeInfo.join(', ')}`,
-    source: 'SYSTEM',
+    source: command || 'freeze',
   });
   
   return { frozen: true, replies: response.data.replies };

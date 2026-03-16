@@ -12,6 +12,7 @@ async function clear({ sheets, args, command }) {
     throw new Error('Usage: clear <spreadsheetId> <range>');
 
   const sheetName = range.includes('!') ? range.split('!')[0] : '';
+  const auditUser = 'CLEAR_CMD'; // Use command name as user identifier
 
   // Fetch old value before clearing
   let oldValue = '';
@@ -39,7 +40,7 @@ async function clear({ sheets, args, command }) {
   // Always audit (clearing an already-empty range is still an intentional action)
   try {
     await logAudit({
-      user: 'ASSISTANT',
+      user: auditUser,
       sheet: sheetName,
       cell: range,
       oldValue: oldValue || '(empty)',

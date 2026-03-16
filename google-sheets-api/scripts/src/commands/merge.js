@@ -13,6 +13,8 @@ async function merge({ sheets, args, flags, command }) {
     );
     
   const grid = parseA1Range(range);
+  const sheetName = grid.sheetName || 'Sheet1';
+  const auditUser = flags.user || 'MERGE_CMD';
   const sheetId = grid.sheetName
     ? await getSheetIdByName(sheets, spreadsheetId, grid.sheetName)
     : await getDefaultSheetId(sheets, spreadsheetId);
@@ -35,12 +37,12 @@ async function merge({ sheets, args, flags, command }) {
   
   // Log audit entry for cell merge
   await logAudit({
-    user: 'ASSISTANT',
-    sheet: grid.sheetName || 'Sheet1',
+    user: auditUser,
+    sheet: sheetName,
     cell: range,
     oldValue: 'Separate cells',
     newValue: `Cells merged (${mergeType})`,
-    source: 'SYSTEM',
+    source: command || 'merge',
   });
   
   return { merged: true, replies: response.data.replies };
