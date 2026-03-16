@@ -24,16 +24,6 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
 
   const sheetName = 'Inventory';
 
-  // Audit log for lease operation start
-  await logAudit({
-    user: auditUser,
-    sheet: 'Lease_Operation',
-    cell: 'N/A',
-    oldValue: 'N/A',
-    newValue: `Starting lease operation for ${tenantName} - Apartment: ${apartment}, Room: ${room || 'N/A'}, Rent: $${amount}, Period: ${startDate} to ${endDate || 'N/A'}`,
-    source: 'LEASE_SERVICE',
-  });
-
   // 1. Search for the address in the Inventory sheet
   console.log(`Searching for apartment: ${apartment} in ${sheetName}...`);
   const invResp = await sheets.spreadsheets.values.get({

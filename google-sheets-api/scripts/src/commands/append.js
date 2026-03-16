@@ -33,12 +33,15 @@ async function append({ sheets, args, flags, command, isMutation }) {
 const newValue = summarizedNewValue;
   // const newValue = JSON.stringify(values);
 
+  const auditUser = flags.user || 'ASSISTANT';
+
   return executeWithOptionalAudit({
     isMutation,
     command,
     spreadsheetId,
     range,
     newValue,
+    user: auditUser,
     execute: async () => {
       console.log(`Appending data to ${spreadsheetId}, range ${range}...`);
       const response = await sheets.spreadsheets.values.append({

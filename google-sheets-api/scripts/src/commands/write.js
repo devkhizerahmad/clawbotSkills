@@ -32,12 +32,15 @@ async function write({ sheets, args, flags, command, isMutation }) {
   }
   const newValue = values?.[0]?.[0];
 
+  const auditUser = flags.user || 'ASSISTANT';
+
   return executeWithOptionalAudit({
     isMutation,
     command,
     spreadsheetId,
     range,
     newValue,
+    user: auditUser,
 
     execute: async () => {
       const sheetsClient = getSheetsClient([WRITE_SCOPE]);

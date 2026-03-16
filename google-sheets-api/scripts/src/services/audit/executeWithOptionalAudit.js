@@ -10,6 +10,7 @@ async function executeWithOptionalAudit({
   range,
   newValue,
   isMutation,
+  user = 'ASSISTANT',
   execute,
 }) {
   const sheets = getSheetsClient([WRITE_SCOPE]);
@@ -43,12 +44,12 @@ async function executeWithOptionalAudit({
     // Log audit only on real change and mutations
     if (isMutation) {
       await logAudit({
-        user: 'ASSISTANT',
+        user: user || 'ASSISTANT',
         sheet: sheetName,
         cell: range,
         oldValue,
         newValue,
-        source: 'SYSTEM',
+        source: command || 'SYSTEM',
       });
     }
 

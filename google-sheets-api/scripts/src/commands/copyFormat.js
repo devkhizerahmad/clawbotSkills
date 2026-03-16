@@ -5,7 +5,7 @@ const { getSheetIdByName } = require('../services/sheets/getSheetIdByName');
 const { getDefaultSheetId } = require('../services/sheets/getDefaultSheetId');
 const { logAudit } = require('../services/audit/logAudit');
 
-async function copyFormat({ sheets, args, command }) {
+async function copyFormat({ sheets, args, flags, command }) {
   const [, spreadsheetId, sourceRange, destRange] = args;
   if (!spreadsheetId || !sourceRange || !destRange)
     throw new Error(
@@ -14,6 +14,8 @@ async function copyFormat({ sheets, args, command }) {
     
   const sourceGrid = parseA1Range(sourceRange);
   const destGrid = parseA1Range(destRange);
+  const sheetName = sourceGrid.sheetName || 'Sheet1';
+  const auditUser = flags.user || 'COPY_FORMAT_CMD';
   const sourceSheetId = sourceGrid.sheetName
     ? await getSheetIdByName(sheets, spreadsheetId, sourceGrid.sheetName)
     : await getDefaultSheetId(sheets, spreadsheetId);
@@ -38,12 +40,12 @@ async function copyFormat({ sheets, args, command }) {
   
   // Log audit entry for format copy
   await logAudit({
-    user: 'ASSISTANT',
-    sheet: sourceGrid.sheetName || 'Sheet1',
+    user: auditUser,
+    sheet: sheetName,
     cell: `${sourceRange} → ${destRange}`,
     oldValue: 'Source format',
     newValue: 'Format copied to destination',
-    source: 'SYSTEM',
+    source: command || 'copyFormat',
   });
   
   return { copied: true, replies: response.data.replies };

@@ -4,7 +4,7 @@ const { colToIndex } = require('../utils/colToIndex');
 const { getSheetIdByName } = require('../services/sheets/getSheetIdByName');
 const { logAudit } = require('../services/audit/logAudit');
 
-async function resize({ sheets, args, command }) {
+async function resize({ sheets, args, flags, command }) {
   const [, spreadsheetId, sheetName, dimension, start, end, size] = args;
   if (!spreadsheetId || !sheetName || !dimension || !start || !end || !size) {
     throw new Error(
@@ -12,6 +12,7 @@ async function resize({ sheets, args, command }) {
     );
   }
   
+  const auditUser = flags.user || 'RESIZE_CMD';
   const sheetId = await getSheetIdByName(sheets, spreadsheetId, sheetName);
   const isCols = dimension === 'cols';
   const range = isCols
@@ -43,12 +44,12 @@ async function resize({ sheets, args, command }) {
   
   // Log audit entry for dimension resize
   await logAudit({
-    user: 'ASSISTANT',
+    user: auditUser,
     sheet: sheetName,
     cell: `${dimension} ${start}-${end}`,
     oldValue: 'Previous size',
     newValue: `Resized to ${size}px`,
-    source: 'SYSTEM',
+    source: command || 'resize',
   });
   
   return { resized: true, replies: response.data.replies };

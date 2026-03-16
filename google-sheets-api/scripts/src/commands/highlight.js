@@ -16,12 +16,15 @@ async function highlight({ sheets, args, command }) {
   if (!spreadsheetId || !range)
     throw new Error('Usage: highlight <spreadsheetId> <range>');
 
+  const auditUser = 'HIGHLIGHT_CMD';
+
   return executeWithOptionalAudit({
     command,
     spreadsheetId,
     range,
     newValue: 'Unavailable',
     isMutation: true,
+    user: auditUser,
     execute: async () => {
       const sheetsClient = getSheetsClient([WRITE_SCOPE]);
       const grid = parseA1Range(range);

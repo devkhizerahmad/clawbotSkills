@@ -4,7 +4,7 @@ const { colToIndex } = require('../utils/colToIndex');
 const { getSheetIdByName } = require('../services/sheets/getSheetIdByName');
 const { logAudit } = require('../services/audit/logAudit');
 
-async function autoResize({ sheets, args, command }) {
+async function autoResize({ sheets, args, flags, command }) {
   const [, spreadsheetId, sheetName, startCol, endCol] = args;
   if (!spreadsheetId || !sheetName || !startCol || !endCol) {
     throw new Error(
@@ -12,6 +12,7 @@ async function autoResize({ sheets, args, command }) {
     );
   }
   
+  const auditUser = flags.user || 'AUTO_RESIZE_CMD';
   const sheetId = await getSheetIdByName(sheets, spreadsheetId, sheetName);
   const response = await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
@@ -33,12 +34,12 @@ async function autoResize({ sheets, args, command }) {
   
   // Log audit entry for auto resize
   await logAudit({
-    user: 'ASSISTANT',
+    user: auditUser,
     sheet: sheetName,
     cell: `Columns ${startCol}-${endCol}`,
     oldValue: 'Manual sizing',
     newValue: 'Auto-resized to fit content',
-    source: 'SYSTEM',
+    source: command || 'autoResize',
   });
   
   return { autoResized: true, replies: response.data.replies };
