@@ -21,6 +21,7 @@ async function testFormatCleaningDateCell() {
     console.log(`Old value: ${oldValue}`);
     console.log(`New value: ${newValue}`);
     
+    
     // Call the function
     await formatCleaningDateCell(sheets, spreadsheetId, cell, oldValue, newValue);
     
@@ -45,4 +46,4 @@ if (require.main === module) {
 module.exports = { testFormatCleaningDateCell };
 
 
-// node scripts/sheets-cli.js write "1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU" "Cleaning!X23" "@test-data.json"
+ adsa node scripts/sheets-cli.js write "1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU" "Cleaning!X23" "@test-data.json"
