@@ -46,4 +46,4 @@ if (require.main === module) {
 module.exports = { testFormatCleaningDateCell };
 
 
- adsa node scripts/sheets-cli.js write "1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU" "Cleaning!X23" "@test-data.json"
+ a node scripts/sheets-cli.js write "1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU" "Cleaning!X23" "@test-data.json"
