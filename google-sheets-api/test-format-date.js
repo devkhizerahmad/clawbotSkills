@@ -46,4 +46,4 @@ if (require.main === module) {
 module.exports = { testFormatCleaningDateCell };
 
 
-s/sheets " "@test-data.json"
+s/sheets " "@test.json"
