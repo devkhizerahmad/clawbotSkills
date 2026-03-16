@@ -166,7 +166,7 @@ async function lease({ sheets, args, flags, command }) {
     user: auditUser,
     sheet: 'Lease_PDF',
     cell: 'N/A',
-    oldValue: 'N/A',
+    oldValue: 'Agreement not generated',
     newValue: `Generating lease agreement PDF for ${tenantName} - Apartment: ${apartment}, Rent: $${amount}, Deposit: $${amount}`,
     source: 'LEASE_CMD',
   });
@@ -181,7 +181,7 @@ async function lease({ sheets, args, flags, command }) {
     user: auditUser,
     sheet: 'Lease_PDF',
     cell: 'N/A',
-    oldValue: 'PDF Generation Started',
+    oldValue: 'PDF generation in progress',
     newValue: `PDF generated successfully: ${pdfPath}`,
     source: 'LEASE_CMD',
   });
@@ -216,7 +216,7 @@ async function lease({ sheets, args, flags, command }) {
     //   user: auditUser,
     //   sheet: 'Lease_Email',
     //   cell: 'N/A',
-    //   oldValue: 'N/A',
+    //   oldValue: 'Email pending',
     //   newValue: `Sending lease agreement to ${email} for ${tenantName}`,
     //   source: 'LEASE_CMD',
     // });
@@ -234,7 +234,7 @@ async function lease({ sheets, args, flags, command }) {
       user: auditUser,
       sheet: 'Lease_Email',
       cell: 'N/A',
-      oldValue: 'Email Not Sent',
+      oldValue: 'Email queued for sending',
       newValue: `Lease agreement sent successfully to ${email} for ${tenantName}`,
       source: 'LEASE_CMD',
     });
@@ -246,7 +246,7 @@ async function lease({ sheets, args, flags, command }) {
       user: auditUser,
       sheet: 'Lease_Email',
       cell: 'N/A',
-      oldValue: 'N/A',
+      oldValue: 'Email field empty in lease details',
       newValue: 'Email sending skipped - no email provided',
       source: 'LEASE_CMD',
     });
