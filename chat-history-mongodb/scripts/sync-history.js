@@ -7,8 +7,7 @@ require('dotenv').config({
   path: path.join(__dirname, '..', '.env'),
 });
 
-const sessionsDir =
-  'C:\\Users\\MudasserRasool\\.openclaw\\agents\\main\\sessions';
+const sessionsDir = process.env.SESSIONS_DIR;
 const uri = process.env.MONGODB_URI;
 const DB_NAME = process.env.MONGODB_DB;
 const COLLECTION_NAME = process.env.MONGODB_COLLECTION;
@@ -47,7 +46,7 @@ async function syncHistory() {
 
     for (const file of files) {
       const filePath = path.join(sessionsDir, file);
-      
+
       const stats = fs.statSync(filePath);
       if (stats.mtimeMs < lastSyncTime) {
         continue;
@@ -134,7 +133,10 @@ async function syncHistory() {
 
       for (const interaction of interactions) {
         // Skip interactions that are completely older than the last sync time
-        if (interaction.queriedAt && interaction.queriedAt.getTime() < lastSyncTime) {
+        if (
+          interaction.queriedAt &&
+          interaction.queriedAt.getTime() < lastSyncTime
+        ) {
           continue;
         }
 
@@ -167,7 +169,9 @@ async function syncHistory() {
 
     if (processedCount > 0) {
       fs.writeFileSync(SYNC_FILE, currentSyncTime.toString(), 'utf8');
-      console.log(`Sync completed successfully. Processed ${processedCount} updated file(s).`);
+      console.log(
+        `Sync completed successfully. Processed ${processedCount} updated file(s).`,
+      );
     } else {
       console.log('No new or updated files to sync.');
     }
