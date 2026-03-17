@@ -1,0 +1,12 @@
+{
+  "name": "chat-history-mongodb",
+  "version": "1.0.0",
+  "description": "Skill for syncing OpenClaw chat history to MongoDB.",
+  "scripts": {
+    "sync": "node scripts/sync-history.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "mongodb": "^6.21.0"
+  }
+}
