@@ -1,5 +1,6 @@
 'use strict';
 
+const { logAudit } = require('../services/audit/logAudit');
 const { INVENTORY_SPREADSHEET_ID } = require('../config');
 const {
     generateReconciliationReport,
@@ -14,11 +15,24 @@ async function reconciliationReport({ sheets, args, flags }) {
     const sheetName = 'Rent Reconciliation';
     const range = `${sheetName}!A5:J500`; // Fetch data from row 5 down to 500
 
+    // Get audit user from flags
+    const auditUser = flags.user || 'RECONCILIATION_CMD';
+
     if (!spreadsheetId) {
         throw new Error(
             'Spreadsheet ID is required. Use as first argument or set INVENTORY_SPREADSHEET_ID in config.',
         );
     }
+
+    // Audit log for operation start
+    await logAudit({
+        user: auditUser,
+        sheet: 'Reconciliation_Operation',
+        cell: 'N/A',
+        oldValue: 'N/A',
+        newValue: `Starting rent reconciliation report generation`,
+        source: 'RECONCILIATION_CMD',
+    });
 
     console.log(`Fetching data from ${sheetName} sheet...`);
 
@@ -45,8 +59,28 @@ async function reconciliationReport({ sheets, args, flags }) {
 
     console.log(`Found ${validData.length} records. Generating report...`);
 
+    // Audit log for data fetch success
+    await logAudit({
+        user: auditUser,
+        sheet: 'Reconciliation_Data',
+        cell: 'N/A',
+        oldValue: 'N/A',
+        newValue: `Fetched ${validData.length} reconciliation records from ${sheetName}`,
+        source: 'RECONCILIATION_CMD',
+    });
+
     // 3. Generate PDF Report (as buffer)
     const pdfBuffer = await generateReconciliationReport(validData);
+
+    // Audit log for PDF generation
+    await logAudit({
+        user: auditUser,
+        sheet: 'Reconciliation_PDF',
+        cell: 'N/A',
+        oldValue: 'PDF not generated',
+        newValue: `Generated reconciliation report PDF with ${validData.length} records`,
+        source: 'RECONCILIATION_CMD',
+    });
 
     // 4. Send Email
     const dateStr = new Date().toLocaleDateString('en-US', {
@@ -56,7 +90,17 @@ async function reconciliationReport({ sheets, args, flags }) {
     });
 
     console.log(`Emailing report to self...`);
-    await sendReconciliationEmail(pdfBuffer, dateStr);
+    await sendReconciliationEmail(pdfBuffer, dateStr, auditUser);
+
+    // Audit log for email sent
+    await logAudit({
+        user: auditUser,
+        sheet: 'Reconciliation_Email',
+        cell: 'N/A',
+        oldValue: 'Email not sent',
+        newValue: `Reconciliation report emailed successfully with ${validData.length} records (${stats.matches} matches)`,
+        source: 'RECONCILIATION_CMD',
+    });
 
     return {
         status: 'success',

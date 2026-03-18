@@ -2,13 +2,15 @@
 
 const nodemailer = require('nodemailer');
 const { EMAIL_CONFIG } = require('../../config');
+const { logAudit } = require('../audit/logAudit');
 
 /**
  * Sends the Rent Reconciliation report via email.
  * @param {Buffer} pdfBuffer - The PDF content as a buffer.
  * @param {string} dateStr - The current date string for the subject.
+ * @param {string} [auditUser] - Optional user for audit logging.
  */
-async function sendReconciliationEmail(pdfBuffer, dateStr) {
+async function sendReconciliationEmail(pdfBuffer, dateStr, auditUser = 'RECONCILIATION_SERVICE') {
     const emailTo = EMAIL_CONFIG.recipient;
 
     if (!EMAIL_CONFIG.user || !EMAIL_CONFIG.pass) {
@@ -46,8 +48,28 @@ async function sendReconciliationEmail(pdfBuffer, dateStr) {
     try {
         await transporter.sendMail(mailOptions);
         console.log(`Reconciliation report emailed successfully to: ${emailTo}`);
+        
+        // Audit log for successful email send
+        await logAudit({
+            user: auditUser,
+            sheet: 'Reconciliation_Email_Service',
+            cell: 'N/A',
+            oldValue: 'Email not sent',
+            newValue: `Reconciliation report sent to ${emailTo} for ${dateStr}`,
+            source: 'SEND_RECONCILIATION_EMAIL_SERVICE',
+        });
     } catch (error) {
         console.error('Failed to send reconciliation email:', error.message);
+        
+        // Audit log for failed email send
+        await logAudit({
+            user: auditUser,
+            sheet: 'Reconciliation_Email_Service',
+            cell: 'N/A',
+            oldValue: 'Email pending',
+            newValue: `Failed to send reconciliation email: ${error.message}`,
+            source: 'SEND_RECONCILIATION_EMAIL_SERVICE',
+        });
         throw error;
     }
 }

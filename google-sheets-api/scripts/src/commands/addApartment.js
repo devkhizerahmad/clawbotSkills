@@ -156,16 +156,6 @@ async function addApartment({ sheets, args, flags }) {
   console.log(`Searching for "${apartmentName}" in Google Drive...`);
   const auditUser = flags.user || 'CLI_Admin';
 
-  // Audit log for start of operation
-  await logAudit({
-    user: auditUser,
-    sheet: 'Operation_Start',
-    cell: 'N/A',
-    oldValue: 'N/A',
-    newValue: `Starting addApartment operation for: ${apartmentName}`,
-    source: 'addApartment Command',
-  });
-
   const apartment = await fetchApartmentByName(apartmentName);
 
   if (!apartment) {
@@ -179,16 +169,6 @@ async function addApartment({ sheets, args, flags }) {
     const numA = getNumericRoom(a.name);
     const numB = getNumericRoom(b.name);
     return (numA || 0) - (numB || 0);
-  });
-
-  // Audit log for apartment fetch
-  await logAudit({
-    user: auditUser,
-    sheet: 'Apartment_Fetch',
-    cell: 'N/A',
-    oldValue: 'Not Found',
-    newValue: `Found apartment: ${apartment.name} with ${rooms.length} rooms`,
-    source: 'addApartment Command',
   });
 
   const spreadsheetId = INVENTORY_SPREADSHEET_ID;
@@ -284,15 +264,6 @@ async function addApartment({ sheets, args, flags }) {
       console.log(
         'Apartment already exists with correct room count. Skipping Inventory update.',
       );
-      // Audit log for skipping update
-      await logAudit({
-        user: auditUser,
-        sheet: inventorySheetTitle,
-        cell: 'Multiple Rows',
-        oldValue: `${apartment.name} with ${rooms.length} rooms`,
-        newValue: `Skipped update - already exists`,
-        source: 'addApartment Command',
-      });
     } else {
       console.log(
         `Updating apartment: changing room count from ${inventoryMatches.length} to ${rooms.length}...`,
@@ -626,15 +597,6 @@ async function addApartment({ sheets, args, flags }) {
       }
       if (rowCount === rooms.length) {
         console.log(`${sheetName} matches. Skipping.`);
-        // Audit log for skipping block update
-        await logAudit({
-          user: auditUser,
-          sheet: sheetName,
-          cell: 'Multiple Rows',
-          oldValue: `${apartment.name} with ${rooms.length} rooms`,
-          newValue: `Skipped update - already exists`,
-          source: 'addApartment Command',
-        });
         return;
       }
       const existingRows = dataRows.slice(
