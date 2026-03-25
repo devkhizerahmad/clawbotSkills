@@ -16,6 +16,15 @@ async function executeWithAuditForBatch({
 }) {
   const sheets = getSheetsClient([WRITE_SCOPE]);
 
+  // Extract sheet name from range
+  let sheetName = '';
+  if (range) {
+    const match = range.match(/^([^!]+)!/);
+    if (match) {
+      sheetName = match[1];
+    }
+  }
+
   // Map old values if a range is provided
   let oldValues = [];
   let cells = [];
@@ -77,9 +86,9 @@ async function executeWithAuditForBatch({
   if (oldStr !== newStr || oldValues.length === 0) {
     await logAudit({
       user: user || 'ASSISTANT',
-      sheet: '', // omit sheet name for batch
+      sheet: sheetName || 'Unknown',
       cell: newCells.join(', '),
-      oldValue: oldStr,
+      oldValue: oldStr || '(empty)',
       newValue: newStr,
       source: command || 'SYSTEM',
     });

@@ -70,7 +70,7 @@ This is an automated notification from ClawdBot.
         user: 'LEASE_SERVICE',
         sheet: 'Lease_Email',
         cell: 'N/A',
-        oldValue: 'Agreement not sent',
+        oldValue: agreementEmailSent ? 'Email sent' : 'Email not sent',
         newValue: `Lease agreement sent to ${emailTo} for ${tenantName}`,
         source: 'AGREEMENT_EMAIL',
       });

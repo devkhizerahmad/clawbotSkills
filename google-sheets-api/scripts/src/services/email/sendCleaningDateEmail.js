@@ -73,7 +73,7 @@ This is an automated notification from ClawdBot.
         user: 'CLEANING_EMAIL_SERVICE',
         sheet: 'Cleaning_Email',
         cell: cell,
-        oldValue: 'Email not sent',
+        oldValue: 'Email sent',
         newValue: `Email sent to ${emailTo} | Type: ${moveoutStatusText}`,
         source: 'CLEANING_SERVICE',
       });

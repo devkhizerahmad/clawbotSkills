@@ -48,7 +48,7 @@ async function borders({ sheets, args, flags, command }) {
     user: auditUser,
     sheet: sheetName,
     cell: range,
-    oldValue: 'No borders or different borders',
+    oldValue: JSON.stringify(style),
     newValue: `Borders updated with style: ${style.style || 'SOLID'}`,
     source: command || 'borders',
   });

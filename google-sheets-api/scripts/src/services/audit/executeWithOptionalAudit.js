@@ -45,10 +45,10 @@ async function executeWithOptionalAudit({
     if (isMutation) {
       await logAudit({
         user: user || 'ASSISTANT',
-        sheet: sheetName,
+        sheet: sheetName || 'Unknown',
         cell: range,
-        oldValue,
-        newValue,
+        oldValue: oldValue || '(empty)',
+        newValue: newValue || '(cleared)',
         source: command || 'SYSTEM',
       });
     }

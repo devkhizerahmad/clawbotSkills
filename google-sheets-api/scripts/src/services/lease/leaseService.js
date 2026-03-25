@@ -316,7 +316,7 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
     user: auditUser,
     sheet: 'Lease_Completion',
     cell: 'N/A',
-    oldValue: 'Operation Started',
+    oldValue: "N/A",
     newValue: `Lease completed successfully for ${tenantName} - Apartment: ${apartment}, Room: ${room || 'N/A'}, Rent: $${amount}, Period: ${startDate} to ${endDate || 'N/A'}`,
     source: 'LEASE_SERVICE',
   });

@@ -25,14 +25,14 @@ async function reconciliationReport({ sheets, args, flags }) {
     }
 
     // Audit log for operation start
-    await logAudit({
-        user: auditUser,
-        sheet: 'Reconciliation_Operation',
-        cell: 'N/A',
-        oldValue: 'N/A',
-        newValue: `Starting rent reconciliation report generation`,
-        source: 'RECONCILIATION_CMD',
-    });
+    // await logAudit({
+    //     user: auditUser,
+    //     sheet: 'Reconciliation_Operation',
+    //     cell: 'N/A',
+    //     oldValue: 'N/A',
+    //     newValue: `Starting rent reconciliation report generation`,
+    //     source: 'RECONCILIATION_CMD',
+    // });
 
     console.log(`Fetching data from ${sheetName} sheet...`);
 
@@ -77,7 +77,7 @@ async function reconciliationReport({ sheets, args, flags }) {
         user: auditUser,
         sheet: 'Reconciliation_PDF',
         cell: 'N/A',
-        oldValue: 'PDF not generated',
+        oldValue: pdfBuffer ? 'PDF generated' : 'PDF not generated',
         newValue: `Generated reconciliation report PDF with ${validData.length} records`,
         source: 'RECONCILIATION_CMD',
     });
@@ -92,23 +92,26 @@ async function reconciliationReport({ sheets, args, flags }) {
     console.log(`Emailing report to self...`);
     await sendReconciliationEmail(pdfBuffer, dateStr, auditUser);
 
+    // Calculate stats for audit log
+    const stats = {
+        total: validData.length,
+        matches: validData.filter((r) => r[0] === 'MATCH').length,
+    };
+
     // Audit log for email sent
     await logAudit({
         user: auditUser,
         sheet: 'Reconciliation_Email',
         cell: 'N/A',
-        oldValue: 'Email not sent',
-        newValue: `Reconciliation report emailed successfully with ${validData.length} records (${stats.matches} matches)`,
+        oldValue: sendReconciliationEmail ? 'Email sent' : 'Email not sent',
+        newValue: `Reconciliation report email with ${stats.total} records (${stats.matches} matches)`,
         source: 'RECONCILIATION_CMD',
     });
 
     return {
         status: 'success',
         message: `Report generated and emailed for ${validData.length} records.`,
-        stats: {
-            total: validData.length,
-            matches: validData.filter((r) => r[0] === 'MATCH').length,
-        },
+        stats,
     };
 }
 

@@ -26,7 +26,7 @@ const newValue = requestCount > 20
     sheet: 'Multiple sheets',
     cell: 'Multiple ranges',
     oldValue: 'N/A',
-    newValue  : newValue,
+    newValue: newValue,
     source: 'SYSTEM',
   });
   

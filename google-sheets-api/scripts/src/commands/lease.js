@@ -151,24 +151,14 @@ async function lease({ sheets, args, flags, command }) {
     // Audit log for email sent
     await logAudit({
       user: auditUser,
-      sheet: 'Lease_Email',
+      sheet: 'Rent Tracker',
       cell: 'N/A',
-      oldValue: 'Email not sent',
-      newValue: `Lease agreement sent successfully to ${email} for ${tenantName}`,
+      oldValue: "Email sent",
+      newValue: `Lease agreement sent to ${email} for ${tenantName}`,
       source: 'LEASE_CMD',
     });
   } else {
     console.log('No email provided, skipping email sending.');
-
-    // Audit log for skipped email
-    await logAudit({
-      user: auditUser,
-      sheet: 'Lease_Email',
-      cell: 'N/A',
-      oldValue: 'Email field empty in lease details',
-      newValue: 'Email sending skipped - no email provided',
-      source: 'LEASE_CMD',
-    });
   }
 
   return {

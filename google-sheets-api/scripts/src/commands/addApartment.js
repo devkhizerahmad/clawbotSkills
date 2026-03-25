@@ -762,7 +762,7 @@ async function addApartment({ sheets, args, flags }) {
   // Final audit log for operation completion
   await logAudit({
     user: auditUser,
-    sheet: 'Operation_Completion',
+    sheet: 'Inventory Data',
     cell: 'N/A',
     oldValue: 'Operation Started',
     newValue: `Operation completed successfully for ${apartment.name} with ${rooms.length} rooms`,

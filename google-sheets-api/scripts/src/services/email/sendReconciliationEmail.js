@@ -54,22 +54,14 @@ async function sendReconciliationEmail(pdfBuffer, dateStr, auditUser = 'RECONCIL
             user: auditUser,
             sheet: 'Reconciliation_Email_Service',
             cell: 'N/A',
-            oldValue: 'Email not sent',
+            oldValue: emailTo ? 'Email sent' : 'Email not sent',
             newValue: `Reconciliation report sent to ${emailTo} for ${dateStr}`,
             source: 'SEND_RECONCILIATION_EMAIL_SERVICE',
         });
     } catch (error) {
         console.error('Failed to send reconciliation email:', error.message);
         
-        // Audit log for failed email send
-        await logAudit({
-            user: auditUser,
-            sheet: 'Reconciliation_Email_Service',
-            cell: 'N/A',
-            oldValue: 'Email pending',
-            newValue: `Failed to send reconciliation email: ${error.message}`,
-            source: 'SEND_RECONCILIATION_EMAIL_SERVICE',
-        });
+        
         throw error;
     }
 }
