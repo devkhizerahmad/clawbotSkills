@@ -1,15 +1,13 @@
-'use strict';
+const { MongoClient } = require("mongodb");
+const path = require("path");
+const dotenv = require("dotenv");
 
-const { MongoClient, GridFSBucket, ObjectId } = require('mongodb');
-const fs = require('fs');
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../../../../.env') });
+dotenv.config({ path: path.join(__dirname, "../../../.env") });
 
-const uri = process.env.MONGODB_URI;
-
-async function saveLeaseContract(data) {
+async function saveReconciliationToMongo(month, records) {
+  const uri = process.env.MONGODB_URI;
   if (!uri) {
-    console.error('MONGODB_URI not found in .env');
+    console.warn("MONGODB_URI missing in .env. Skipping MongoDB update.");
     return;
   }
 
@@ -17,97 +15,30 @@ async function saveLeaseContract(data) {
 
   try {
     await client.connect();
-    const database = client.db('rent_reconciliation_db');
+    const database = client.db("rent_reconciliation_db"); // Default DB name, can be adjusted
+    const collection = database.collection("rent_reconciliation"); // Create the document in the format {month: records}
 
-    // 1️⃣ Upload PDF to GridFS
-    const bucket = new GridFSBucket(database, { bucketName: 'leaseContracts' });
-    const pdfStream = fs.createReadStream(data.pdfPath);
+    const document = {
+      [month]: records,
+      updatedAt: new Date(),
+    }; // To follow the "update if exists" rule per month: // We need a way to identify the month. If the document format is literally {month: records}, // we should probably store each month as its own document where the month key exists. // However, a better approach for "update if exists" is to have a stable identifier. // If the requirement is LITERALLY {month: records}, we'll use a filter that checks for the existence of that key // or we'll just use the month name as a unique identifier field in our query. // Let's use the month name as a custom field to find the document, // but the stored document will have the key as requested.
 
-    const uploadResult = await new Promise((resolve, reject) => {
-      const upload = bucket.openUploadStream(path.basename(data.pdfPath), {
-        metadata: {
-          tenantName: data.tenantName,
-          email: data.email,
-        },
-      });
-      pdfStream
-        .pipe(upload)
-        .on('error', reject)
-        .on('finish', () => resolve(upload.id));
+    const filter = { [month]: { $exists: true } };
+
+    const result = await collection.replaceOne(filter, document, {
+      upsert: true,
     });
 
-    console.log(`PDF stored in GridFS with ID: ${uploadResult}`);
-
-    // 2️⃣ Save document with reference to GridFS file
-    const collection = database.collection('lease-apartment-contract');
-
-    const result = await collection.insertOne({
-      tenantName: data.tenantName,
-      email: data.email,
-      pdfFileId: uploadResult, // MongoDB ObjectId reference to GridFS
-      signed: false,
-      createdAt: new Date(),
-    });
-
-    console.log(
-      `Successfully added lease record to MongoDB: ${result.insertedId}`,
-    );
-
-    return result.insertedId;
-  } catch (error) {
-    console.error('Error saving lease contract:', error.message);
-  } finally {
-    await client.close();
-  }
-}
-
-async function emailExists(email) {
-  const client = new MongoClient(uri);
-
-  try {
-    await client.connect();
-    const database = client.db('rent_reconciliation_db');
-
-    const collection = database.collection('contract-emails');
-
-    const result = await collection.findOne({
-      email: email,
-    });
-
-    return !!result;
-  } finally {
-    await client.close();
-  }
-}
-
-async function saveContractEmail(contractId, email) {
-  const client = new MongoClient(uri);
-
-  try {
-    await client.connect();
-    const database = client.db('rent_reconciliation_db');
-
-    const collection = database.collection('contract-emails');
-
-    const result = await collection.insertOne({
-      contractId: new ObjectId(contractId),
-      email,
-      sentAt: new Date(),
-    });
-
-    console.log(`Email record created: ${result.insertedId}`);
-
-    return result.insertedId;
-  } catch (error) {
-    if (error.code === 11000) {
-      console.log('Duplicate email prevented by MongoDB unique index.');
-      return null;
+    if (result.upsertedCount > 0) {
+      console.log(`New entry created in MongoDB for ${month}`);
+    } else {
+      console.log(`Updated existing entry in MongoDB for ${month}`);
     }
-
-    throw error;
+  } catch (err) {
+    console.error("Error saving to MongoDB:", err.message);
   } finally {
     await client.close();
   }
 }
 
-module.exports = { saveLeaseContract, emailExists, saveContractEmail };
+module.exports = { saveReconciliationToMongo };

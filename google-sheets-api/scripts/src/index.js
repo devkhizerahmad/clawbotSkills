@@ -1,20 +1,25 @@
-'use strict';
+"use strict";
 
 const {
   READ_SCOPE,
   WRITE_SCOPE,
   READ_ONLY_COMMANDS,
   HELP_TEXT,
-} = require('./config');
-const { getSheetsClient, DRIVE_READ_SCOPE } = require('./auth');
-const { parseArgs } = require('./utils/parseArgs');
-const commands = require('./commands/index');
+} = require("./config");
+const { parseArgs } = require("./utils/parseArgs");
+const commands = require("./commands/index");
 
 async function main() {
   const { args, flags } = parseArgs(process.argv.slice(2));
   const command = args[0];
+  const leaseListCommands = new Set([
+    "list-leases",
+    "signed-leases",
+    "unsigned-leases",
+    "lease-by-email",
+  ]);
 
-  if (!command || command === 'help' || command === '--help') {
+  if (!command || command === "help" || command === "--help") {
     console.log(HELP_TEXT.trim());
     return;
   }
@@ -25,11 +30,17 @@ async function main() {
     process.exit(1);
   }
 
-  const scopes = READ_ONLY_COMMANDS.has(command) ? [READ_SCOPE] : [WRITE_SCOPE];
-  if (command === 'add-apartment') {
-    scopes.push(DRIVE_READ_SCOPE);
+  let sheets = null;
+  if (!leaseListCommands.has(command)) {
+    const { getSheetsClient, DRIVE_READ_SCOPE } = require("./auth");
+    const scopes = READ_ONLY_COMMANDS.has(command)
+      ? [READ_SCOPE]
+      : [WRITE_SCOPE];
+    if (command === "add-apartment") {
+      scopes.push(DRIVE_READ_SCOPE);
+    }
+    sheets = getSheetsClient(scopes);
   }
-  const sheets = getSheetsClient(scopes);
   const isMutation = !READ_ONLY_COMMANDS.has(command);
 
   try {
@@ -43,7 +54,7 @@ async function main() {
 
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error("Error:", error.message);
     if (error.response?.data?.error) {
       console.error(JSON.stringify(error.response.data.error, null, 2));
     }

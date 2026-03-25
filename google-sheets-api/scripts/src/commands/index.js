@@ -1,32 +1,34 @@
-'use strict';
+"use strict";
 
-const { read } = require('./read');
-const { write } = require('./write');
-const { append } = require('./append');
-const { clear } = require('./clear');
-const { batchGet } = require('./batchGet');
-const { batchWrite } = require('./batchWrite');
-const { highlight } = require('./highlight');
-const { unhighlight } = require('./unhighlight');
-const { format } = require('./format');
-const { getFormat } = require('./getFormat');
-const { borders } = require('./borders');
-const { merge } = require('./merge');
-const { unmerge } = require('./unmerge');
-const { resize } = require('./resize');
-const { autoResize } = require('./autoResize');
-const { freeze } = require('./freeze');
-const { copyFormat } = require('./copyFormat');
-const { create } = require('./create');
-const { info } = require('./info');
-const { addSheet } = require('./addSheet');
-const { deleteSheet } = require('./deleteSheet');
-const { renameSheet } = require('./renameSheet');
-const { batch } = require('./batch');
-const { allUpdatesCleaning } = require('./allUpdatesCleaning');
-const { lease } = require('./lease');
-const { addApartment } = require('./addApartment');
-const { reconciliationReport } = require('./reconciliationReport');
+const { read } = require("./read");
+const { write } = require("./write");
+const { append } = require("./append");
+const { clear } = require("./clear");
+const { batchGet } = require("./batchGet");
+const { batchWrite } = require("./batchWrite");
+const { highlight } = require("./highlight");
+const { unhighlight } = require("./unhighlight");
+const { format } = require("./format");
+const { getFormat } = require("./getFormat");
+const { borders } = require("./borders");
+const { merge } = require("./merge");
+const { unmerge } = require("./unmerge");
+const { resize } = require("./resize");
+const { autoResize } = require("./autoResize");
+const { freeze } = require("./freeze");
+const { copyFormat } = require("./copyFormat");
+const { create } = require("./create");
+const { info } = require("./info");
+const { addSheet } = require("./addSheet");
+const { deleteSheet } = require("./deleteSheet");
+const { renameSheet } = require("./renameSheet");
+const { batch } = require("./batch");
+const { allUpdatesCleaning } = require("./allUpdatesCleaning");
+const { lease } = require("./lease");
+const { listLeases } = require("./listLeases");
+const { leaseByEmail } = require("./leaseByEmail");
+const { addApartment } = require("./addApartment");
+const { reconciliationReport } = require("./reconciliationReport");
 
 module.exports = {
   read,
@@ -54,6 +56,10 @@ module.exports = {
   batch,
   allUpdatesCleaning,
   lease,
-  'add-apartment': addApartment,
-  'generate-reconciliation-report': reconciliationReport,
+  "list-leases": listLeases,
+  "signed-leases": listLeases,
+  "unsigned-leases": listLeases,
+  "lease-by-email": leaseByEmail,
+  "add-apartment": addApartment,
+  "generate-reconciliation-report": reconciliationReport,
 };

@@ -76,6 +76,10 @@ Supported sources (first match wins):
   1. Fetches data from the `Rent Reconciliation` sheet.
   2. Generates a PDF report with the reconciliation data.
   3. Send the PDF report to the user.
+- **Listing Leases**: If the user asks to "List leases", use the `node scripts/sheets-cli.js list-leases` command.
+- **Listing Signed Leases**: If the user asks to "List signed leases", use the `node scripts/sheets-cli.js signed-leases` command.
+- **Listing Unsigned Leases**: If the user asks to "List unsigned leases", use the `node scripts/sheets-cli.js unsigned-leases` command.
+- **Getting Lease by Email**: If the user asks to "Get lease by email" or wants to find leases for a specific email address, use the `node scripts/sheets-cli.js lease-by-email <email>` command. This will return all leases associated with the provided email address.
 
 ## Input conventions
 
@@ -101,7 +105,7 @@ Data:
 
 - `read`, `write`, `append`, `clear`, `batchGet`, `batchWrite`
 - `highlight`, `unhighlight`, `Add apartment`, `generate-reconciliation-report`
-- `lease`
+- `lease`, `list-leases`, `signed-leases`, `unsigned-leases`, `lease-by-email`
 
 Formatting:
 
@@ -173,6 +177,7 @@ Cleaning date automation (automatic audit logging when cleaning dates are modifi
 Complex multi-sheet operations:
 
 - `Add apartment` — Comprehensive audit logging for:
+
   - Operation start and completion
   - Apartment fetch from Google Drive
   - Inventory table updates (room count changes, row additions/deletions)

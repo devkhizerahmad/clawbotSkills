@@ -1,32 +1,32 @@
-'use strict';
+"use strict";
 
-const path = require('path');
+const path = require("path");
 
-const READ_SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';
-const WRITE_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
+const READ_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
+const WRITE_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 
 const DEFAULT_CRED_FILES = [
-  'service-account.json',
-  'credentials.json',
-  'google-service-account.json',
+  "service-account.json",
+  "credentials.json",
+  "google-service-account.json",
   path.join(
-    process.env.HOME || '',
-    '.config/google-sheets/credentials.json' || '../../credentials.json',
+    process.env.HOME || "",
+    ".config/google-sheets/credentials.json" || "../../credentials.json"
   ),
 ];
 
-const AUDIT_SPREADSHEET_ID = '1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU';
-const AUDIT_SHEET_NAME = 'Audit_Log';
+const AUDIT_SPREADSHEET_ID = "1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU";
+const AUDIT_SHEET_NAME = "Audit_Log";
 
-const EMAIL_USER = 'devkhizerahmad@gmail.com';
-const EMAIL_PASS = 'aief unbt nkfa smrj';
-const EMAIL_RECIPIENT = 'devkhizerahmad@gmail.com';
+const EMAIL_USER = "devkhizerahmad@gmail.com";
+const EMAIL_PASS = "aief unbt nkfa smrj";
+const EMAIL_RECIPIENT = "devkhizerahmad@gmail.com";
 
-const CLEANING_SPREADSHEET_ID = '1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU';
-const INVENTORY_SPREADSHEET_ID = '1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU';
-const APARTMENT_CATALOG_FOLDER_ID = '1iRfjl7Fao3MHxgi6SQgIUFp3QSCKxKm_';
-const CLEANING_SHEET_NAME = 'Cleaning';
-const CLEANING_DATE_COLUMN = 'X';
+const CLEANING_SPREADSHEET_ID = "1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU";
+const INVENTORY_SPREADSHEET_ID = "1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU";
+const APARTMENT_CATALOG_FOLDER_ID = "1iRfjl7Fao3MHxgi6SQgIUFp3QSCKxKm_";
+const CLEANING_SHEET_NAME = "Cleaning";
+const CLEANING_DATE_COLUMN = "X";
 const CLEANING_DATE_COLOR = {
   red: 202 / 255,
   green: 237 / 255,
@@ -35,18 +35,22 @@ const CLEANING_DATE_COLOR = {
 
 // ===== EMAIL CONFIGURATION =====
 const EMAIL_CONFIG = {
-  service: 'gmail', // or 'outlook', 'yahoo'
+  service: "gmail", // or 'outlook', 'yahoo'
   user: EMAIL_USER, // your-email@gmail.com
   pass: EMAIL_PASS, // app password
   recipient: EMAIL_RECIPIENT,
 };
 
 const READ_ONLY_COMMANDS = new Set([
-  'read',
-  'batchGet',
-  'info',
-  'getFormat',
-  'revisions',
+  "read",
+  "batchGet",
+  "info",
+  "getFormat",
+  "list-leases",
+  "signed-leases",
+  "unsigned-leases",
+  "lease-by-email",
+  "revisions",
 ]);
 
 const HELP_TEXT = `
@@ -65,6 +69,10 @@ const HELP_TEXT = `
     highlight <spreadsheetId> <range>
     unhighlight <spreadsheetId> <range>
     lease <spreadsheetId> <leaseDetailsText>
+    list-leases
+    signed-leases
+    unsigned-leases
+    lease-by-email <email>
     add-apartment <apartmentName>
     reconciliation-report [spreadsheetId]
 

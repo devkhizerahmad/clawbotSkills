@@ -1,42 +1,42 @@
-'use strict';
+"use strict";
 
-const { logAudit } = require('../services/audit/logAudit');
+const { logAudit } = require("../services/audit/logAudit");
 const {
   generateAgreementPdf,
-} = require('../services/generateAgreement/generateAgreement');
-const { sendAgreementEmail } = require('../services/email/sendAgreementEmail');
+} = require("../services/generateAgreement/generateAgreement");
+const { sendAgreementEmail } = require("../services/email/sendAgreementEmail");
 const {
   saveLeaseContract,
   emailExists,
   saveContractEmail,
-} = require('../services/mongodb/mongodbService');
+} = require("../services/mongodb/mongodbService");
 const {
   hasEmailInLocal,
   addEmailInLocal,
-} = require('../services/email/registerEmail');
-const { INVENTORY_SPREADSHEET_ID } = require('../config');
+} = require("../services/email/registerEmail");
+const { INVENTORY_SPREADSHEET_ID } = require("../config");
 
 async function lease({ sheets, args, flags, command }) {
   const commandArgs = args.slice(1);
   let spreadsheetId = INVENTORY_SPREADSHEET_ID;
-  let leaseStr = commandArgs.join(' ');
-  leaseStr = leaseStr.replace(/\s+/g, ' ').trim();
+  let leaseStr = commandArgs.join(" ");
+  leaseStr = leaseStr.replace(/\s+/g, " ").trim();
 
   // Get audit user from flags
-  const auditUser = flags.user || 'LEASE_CMD';
+  const auditUser = flags.user || "LEASE_CMD";
 
   // If first arg looks like a spreadsheet ID (long alphanumeric) and not lease text
   if (
     commandArgs[0] &&
     commandArgs[0].length > 20 &&
-    !commandArgs[0].includes(' ')
+    !commandArgs[0].includes(" ")
   ) {
     spreadsheetId = commandArgs[0];
-    leaseStr = commandArgs.slice(1).join(' ');
+    leaseStr = commandArgs.slice(1).join(" ");
   }
 
   if (!leaseStr) {
-    throw new Error('Please provide the lease details string.');
+    throw new Error("Please provide the lease details string.");
   }
 
   // Regex Parsing
@@ -75,7 +75,7 @@ async function lease({ sheets, args, flags, command }) {
   // Dates
   const startDate = leaseStr.match(/from (.*?) to/i)?.[1]?.trim();
   const endDate = leaseStr.match(
-    /from\s+\d{1,2}\/\d{1,2}\/\d{4}\s+to\s+(\d{1,2}\/\d{1,2}\/\d{4})/i,
+    /from\s+\d{1,2}\/\d{1,2}\/\d{4}\s+to\s+(\d{1,2}\/\d{1,2}\/\d{4})/i
   )?.[1];
   // Rent
   const amountMatch = leaseStr.match(/(?:amount|for)\s*\$?(\d+)/i);
@@ -92,7 +92,7 @@ async function lease({ sheets, args, flags, command }) {
 
   // Email
   const emailMatch = leaseStr.match(
-    /(?:email|emails)\s*(?:is)?\s*([^\s$.]+@[^\s$.]+\.[^\s$.]+)/i,
+    /(?:email|emails)\s*(?:is)?\s*([^\s$.]+@[^\s$.]+\.[^\s$.]+)/i
   );
   const email = emailMatch?.[1]?.trim();
 
@@ -100,33 +100,33 @@ async function lease({ sheets, args, flags, command }) {
 
   if (!tenantName || !apartment || !startDate || !endDate || !amount) {
     throw new Error(
-      'Could not parse all required lease details. Please check the string format.',
+      "Could not parse all required lease details. Please check the string format."
     );
   }
 
-  console.log('Parsed details:');
-  console.log('Tenant Name:', tenantName);
-  console.log('Apartment:', apartment);
-  console.log('Room:', room);
-  console.log('Start Date:', startDate);
-  console.log('End Date:', endDate);
-  console.log('Amount:', amount);
-  console.log('Prorate:', prorate);
-  console.log('Contact:', contact);
-  console.log('Email:', email);
+  console.log("Parsed details:");
+  console.log("Tenant Name:", tenantName);
+  console.log("Apartment:", apartment);
+  console.log("Room:", room);
+  console.log("Start Date:", startDate);
+  console.log("End Date:", endDate);
+  console.log("Amount:", amount);
+  console.log("Prorate:", prorate);
+  console.log("Contact:", contact);
+  console.log("Email:", email);
 
   // 1. Generate Agreement PDF First
-  console.log('Generating agreement PDF...');
+  console.log("Generating agreement PDF...");
   const agreementData = {
     tenantName,
-    sublessorName: 'Hive NY',
+    sublessorName: "Hive NY",
     propertyAddress: apartment,
     rent: amount,
     proRateRent: prorate,
     securityDeposit: amount,
     leaseStartDate: startDate,
     leaseEndDate: endDate,
-    agreementDate: new Date().toISOString().split('T')[0],
+    agreementDate: new Date().toISOString().split("T")[0],
     room,
     contact,
     email,
@@ -142,32 +142,32 @@ async function lease({ sheets, args, flags, command }) {
     console.log(`Sending agreement to ${email}...`);
 
     await sendAgreementEmail(email, tenantName, pdfPath);
-    console.log('Saving contract email to MongoDB...');
+    console.log("Saving contract email to MongoDB...");
     await saveContractEmail(leaseId, email);
-    console.log('Adding email to local registry...');
+    console.log("Adding email to local registry...");
     addEmailInLocal(email);
-    console.log('Email sent successfully');
+    console.log("Email sent successfully");
 
     // Audit log for email sent
     await logAudit({
       user: auditUser,
-      sheet: 'Lease_Email',
-      cell: 'N/A',
-      oldValue: 'Email not sent',
+      sheet: "Lease_Email",
+      cell: "N/A",
+      oldValue: "Email not sent",
       newValue: `Lease agreement sent successfully to ${email} for ${tenantName}`,
-      source: 'LEASE_CMD',
+      source: "LEASE_CMD",
     });
   } else {
-    console.log('No email provided, skipping email sending.');
+    console.log("No email provided, skipping email sending.");
 
     // Audit log for skipped email
     await logAudit({
       user: auditUser,
-      sheet: 'Lease_Email',
-      cell: 'N/A',
-      oldValue: 'Email field empty in lease details',
-      newValue: 'Email sending skipped - no email provided',
-      source: 'LEASE_CMD',
+      sheet: "Lease_Email",
+      cell: "N/A",
+      oldValue: "Email field empty in lease details",
+      newValue: "Email sending skipped - no email provided",
+      source: "LEASE_CMD",
     });
   }
 
