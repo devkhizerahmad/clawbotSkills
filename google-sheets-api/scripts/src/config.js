@@ -65,6 +65,7 @@ const HELP_TEXT = `
     highlight <spreadsheetId> <range>
     unhighlight <spreadsheetId> <range>
     lease <spreadsheetId> <leaseDetailsText>
+    get-contract-status <email>
     add-apartment <apartmentName>
     reconciliation-report [spreadsheetId]
 

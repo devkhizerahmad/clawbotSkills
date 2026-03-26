@@ -132,4 +132,34 @@ async function saveContractEmail(contractId, email) {
   }
 }
 
-module.exports = { saveLeaseContract, emailExists, saveContractEmail };
+async function getLeaseContractStatus(email) {
+  const client = new MongoClient(uri);
+
+  try {
+    await client.connect();
+    const database = client.db('rent_reconciliation_db');
+
+    const collection = database.collection('lease-apartment-contract');
+
+    const namePart = email.includes('@') ? email.split('@')[0] : email;
+    const regex = new RegExp(namePart, 'i');
+
+    const result = await collection.findOne({
+      $or: [
+        { email: regex },
+        { tenantName: regex }
+      ]
+    });
+
+    return result;
+  } finally {
+    await client.close();
+  }
+}
+
+module.exports = {
+  saveLeaseContract,
+  emailExists,
+  saveContractEmail,
+  getLeaseContractStatus,
+};

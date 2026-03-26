@@ -27,6 +27,7 @@ const { allUpdatesCleaning } = require('./allUpdatesCleaning');
 const { lease } = require('./lease');
 const { addApartment } = require('./addApartment');
 const { reconciliationReport } = require('./reconciliationReport');
+const { getContractStatus } = require('./getContractStatus');
 
 module.exports = {
   read,
@@ -56,4 +57,5 @@ module.exports = {
   lease,
   'add-apartment': addApartment,
   'generate-reconciliation-report': reconciliationReport,
+  'get-contract-status': getContractStatus,
 };

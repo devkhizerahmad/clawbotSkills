@@ -76,6 +76,9 @@ Supported sources (first match wins):
   1. Fetches data from the `Rent Reconciliation` sheet.
   2. Generates a PDF report with the reconciliation data.
   3. Send the PDF report to the user.
+- **GET Lease Contract Status**: if user ask for lease contract status, use the `node scripts/sheets-cli.js get-contract-status <email>` command. This command automatically:
+  1. Fetches data from the `lease-apartment-contract` collection in MongoDB.
+  2. Returns the status of the lease contract.
 
 ## Input conventions
 
@@ -101,7 +104,7 @@ Data:
 
 - `read`, `write`, `append`, `clear`, `batchGet`, `batchWrite`
 - `highlight`, `unhighlight`, `Add apartment`, `generate-reconciliation-report`
-- `lease`
+- `lease`, `get-contract-status`
 
 Formatting:
 
