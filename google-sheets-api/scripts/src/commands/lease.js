@@ -1,6 +1,5 @@
 'use strict';
 
-const { logAudit } = require('../services/audit/logAudit');
 const {
   generateAgreementPdf,
 } = require('../services/generateAgreement/generateAgreement');
@@ -14,6 +13,7 @@ const {
   hasEmailInLocal,
   addEmailInLocal,
 } = require('../services/email/registerEmail');
+const { updateLeaseSheets } = require('../services/lease/leaseService');
 const { INVENTORY_SPREADSHEET_ID } = require('../config');
 
 async function lease({ sheets, args, flags, command }) {
@@ -38,23 +38,6 @@ async function lease({ sheets, args, flags, command }) {
   if (!leaseStr) {
     throw new Error('Please provide the lease details string.');
   }
-
-  // Regex Parsing
-  // const tenantName = leaseStr.match(/^(.*?) has leased/i)?.[1]?.trim();
-  // const apartment =
-  //   leaseStr.match(/apartment (.*?) Room/i)?.[1]?.trim() ||
-  //   leaseStr.match(/apartment (.*?) from/i)?.[1]?.trim();
-  // const room = leaseStr.match(/Room (\d+)/i)?.[1]?.trim();
-  // const startDate = leaseStr.match(/from (.*?) to/i)?.[1]?.trim();
-  // const endDate = leaseStr.match(/to (.*?) for/i)?.[1]?.trim();
-  // const amount = leaseStr.match(/amount (\d+)/i)?.[1]?.trim();
-  // const prorateRaw = leaseStr.match(/prorate (\d+)/i)?.[1]?.trim();
-  // const contact = leaseStr.match(/number (\d+)/i)?.[1]?.trim();
-  // const email =
-  //   leaseStr.match(/email ([^\s$.]+@[^\s$.]+\.[^\s$.]+)/i)?.[1]?.trim() ||
-  //   leaseStr.match(/email ([^\s$.]+)/i)?.[1]?.trim();
-
-  // const prorate = prorateRaw || amount;
 
   let tenantName = leaseStr.match(/^(.*?) has leased/i)?.[1]?.trim();
 
@@ -132,12 +115,28 @@ async function lease({ sheets, args, flags, command }) {
     email,
   };
 
-  // const addSublesseeSignature =
-  //   flags.addSublesseeSignature !== 'false' &&
-  //   flags.addSublesseeSignature !== false;
   const pdfPath = await generateAgreementPdf(agreementData, true, false);
 
-  // 2. Send Email
+  // 2. Save Lease to MongoDB
+  console.log('Saving lease to MongoDB...');
+  const leaseId = await saveLeaseContract({
+    ...agreementData,
+    pdfPath,
+  });
+
+  // 3. Update Spreadsheets
+  console.log('Updating spreadsheets...');
+  await updateLeaseSheets({
+    sheets,
+    spreadsheetId,
+    data: agreementData,
+    auditUser,
+  });
+
+  // 4. Send Email
+  const emailAlreadyExists = email ? await emailExists(email) : false;
+  const emailAlreadyInLocal = email ? hasEmailInLocal(email) : false;
+
   if (email && !emailAlreadyExists && !emailAlreadyInLocal) {
     console.log(`Sending agreement to ${email}...`);
 
@@ -147,25 +146,17 @@ async function lease({ sheets, args, flags, command }) {
     console.log('Adding email to local registry...');
     addEmailInLocal(email);
     console.log('Email sent successfully');
-
-    // Audit log for email sent
-    await logAudit({
-      user: auditUser,
-      sheet: 'Rent Tracker',
-      cell: 'N/A',
-      oldValue: "Email sent",
-      newValue: `Lease agreement sent to ${email} for ${tenantName}`,
-      source: 'LEASE_CMD',
-    });
+    
+    // NOTE: Email sending action is recorded via saveContractEmail audit log in mongodbService
   } else {
-    console.log('No email provided, skipping email sending.');
+    console.log('No email provided or email already processed, skipping email sending.');
   }
 
   return {
     success: true,
     message: `Apartment ${apartment} leased to ${tenantName} successfully.`,
     pdfPath,
-    emailSent: !!email,
+    emailSent: !!email && !emailAlreadyExists && !emailAlreadyInLocal,
   };
 }
 

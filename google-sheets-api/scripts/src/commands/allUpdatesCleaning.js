@@ -124,37 +124,20 @@ async function allUpdatesCleaning({ sheets, args, flags, command, isMutation }) 
     requestBody: { values: updatedValues },
   });
 
-  if (changes.length === 0) {
+  if (changes.length > 0) {
+    // Log granular per-row audit entries
+    const affectedCells = changes.map(change => `${CLEANING_DATE_COLUMN}${change.row}`).join(', ');
+    const oldValues = changes.map(change => change.oldDate || '(empty)').join(', ');
+    const newValues = changes.map(change => change.newDate).join(', ');
+
     await logAudit({
       user: auditUser,
       sheet: CLEANING_SHEET_NAME,
-      cell: range,
-      oldValue: 'No effective date changes',
-      newValue: `${operation} ${amount} ${unit} attempted`,
+      cell: affectedCells,
+      oldValue: oldValues,
+      newValue: newValues,
       source: command || 'allUpdatesCleaning',
     });
-  }
-
-  // Log granular per-row audit entries
-  if (changes.length > 0) {
-    const affectedCells = changes.map(change => `${CLEANING_DATE_COLUMN}${change.row}`).join(', ');
-    const oldValues = values.map(v => v[0]).join(', ');
-    const newValues = updatedValues.map(v => v[0]).join(', ');
-
-    //  const oldValues = changes.map(change => change.oldDate).join(', ');
-    // const newValues = changes.map(change => change.newDate).join(', ');
-    try {
-      await logAudit({
-        user: auditUser,
-        sheet: CLEANING_SHEET_NAME,
-        cell: affectedCells,
-        oldValue: oldValues,
-        newValue: newValues,
-        source: command || 'allUpdatesCleaning',
-      });
-    } catch (err) {
-      console.warn('Audit log failed:', err.message);
-    }
   }
 
   // Trigger formatCleaningDateCell for each changed row

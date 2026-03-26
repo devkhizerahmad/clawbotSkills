@@ -311,15 +311,6 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
     console.error('Failed to update Inventory Data sheet:', err.message);
   }
 
-  // Final Audit Log for successful lease operation
-  await logAudit({
-    user: auditUser,
-    sheet: 'Lease_Completion',
-    cell: 'N/A',
-    oldValue: "N/A",
-    newValue: `Lease completed successfully for ${tenantName} - Apartment: ${apartment}, Room: ${room || 'N/A'}, Rent: $${amount}, Period: ${startDate} to ${endDate || 'N/A'}`,
-    source: 'LEASE_SERVICE',
-  });
 
   return {
     success: true,

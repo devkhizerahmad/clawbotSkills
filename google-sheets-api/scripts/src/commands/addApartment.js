@@ -280,15 +280,6 @@ async function addApartment({ sheets, args, flags }) {
       const endIdx =
         inventoryTableStartRow + inventoryMatches[inventoryMatches.length - 1];
       
-            // Audit Log for Inventory Update
-      await logAudit({
-        user: auditUser,
-        sheet: inventorySheetTitle,
-        cell: `Rows ${startIdx + 1}-${endIdx + 1}`,
-        oldValue: `${inventoryMatches.length} rooms`,
-        newValue: `${rooms.length} rooms (Updated)`,
-        source: 'addApartment Command',
-      });
 
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
@@ -317,14 +308,6 @@ async function addApartment({ sheets, args, flags }) {
           ],
         },
       });
-      await logAudit({
-        user: auditUser,
-        sheet: inventorySheetTitle,
-        cell: `Rows ${startIdx + 1}-${endIdx + 1}`,
-        oldValue: `${inventoryMatches.length} rooms`,
-        newValue: `${updatedRows.length} rows — deleted & re-inserted`,
-        source: 'addApartment Inventory batchUpdate',
-      });
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: `${inventorySheetTitle}!A${startIdx + 1}`,
@@ -335,9 +318,9 @@ async function addApartment({ sheets, args, flags }) {
         user: auditUser,
         sheet: inventorySheetTitle,
         cell: `${inventorySheetTitle}!A${startIdx + 1}`,
-        oldValue: `${inventoryMatches.length} rooms (old data)`,
-        newValue: `${rooms.length} rooms written for ${apartment.name}`,
-        source: 'addApartment – Inventory values.update',
+        oldValue: `Old apartment data (${inventoryMatches.length} rooms)`,
+        newValue: `Updated to ${rooms.length} rooms for ${apartment.name}`,
+        source: 'addApartment: Inventory Values Update',
       });
       // Apply borders to updated area
       await applyBorders(
@@ -349,14 +332,6 @@ async function addApartment({ sheets, args, flags }) {
         0,
         21,
       );
-      await logAudit({
-        user: auditUser,
-        sheet: inventorySheetTitle,
-        cell: `Rows ${startIdx + 1}-${startIdx + updatedRows.length}`,
-        oldValue: 'N/A',
-        newValue: 'Borders applied',
-        source: 'addApartment – applyBorders (Inventory update)',
-      });
     }
   } else {
     // Add Logic
@@ -431,8 +406,8 @@ async function addApartment({ sheets, args, flags }) {
         sheet: inventorySheetTitle,
         cell: `${inventorySheetTitle}!A${startRowOnSheet}`,
         oldValue: oldValueStr,
-        newValue: `${newRows.length} rooms added for ${apartment.name}`,
-        source: 'addApartment – Inventory values.update (empty row)',
+        newValue: `Added ${newRows.length} rooms for ${apartment.name}`,
+        source: 'addApartment: Inventory Add',
       });
       // Apply borders to new area
       await applyBorders(
@@ -444,14 +419,6 @@ async function addApartment({ sheets, args, flags }) {
         0,
         21,
       );
-      await logAudit({
-        user: auditUser,
-        sheet: inventorySheetTitle,
-        cell: `Rows ${startRowOnSheet}-${startRowOnSheet - 1 + newRows.length}`,
-        oldValue: 'No borders or partial formatting',
-        newValue: 'Full borders applied to all cells',
-        source: 'addApartment – applyBorders (Inventory add)',
-      });
     } else {
       console.log('No empty rows found. Appending to bottom...');
       const appendRes = await sheets.spreadsheets.values.append({
@@ -480,14 +447,6 @@ async function addApartment({ sheets, args, flags }) {
         0,
         21,
       );
-      await logAudit({
-        user: auditUser,
-        sheet: inventorySheetTitle,
-        cell: `Rows ${grid.startRowIndex + 1}-${grid.endRowIndex}`,
-        oldValue: 'Existing formatting',
-        newValue: 'Borders applied/updated',
-        source: 'addApartment – applyBorders (Inventory append)',
-      });
     }
   }
 
@@ -618,15 +577,6 @@ async function addApartment({ sheets, args, flags }) {
       ];
       const startIdx = Math.max(0, firstRoomIdx - 2);
       const endIdx = firstRoomIdx + rowCount;
-            // Audit Log for Block Update
-      await logAudit({
-        user: auditUser,
-        sheet: sheetName,
-        cell: `Rows ${startIdx + 1}-${endIdx}`,
-        oldValue: `${rowCount} rooms`,
-        newValue: `${rooms.length} rooms (Updated)`,
-        source: 'addApartment Command',
-      });
 
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
@@ -655,14 +605,6 @@ async function addApartment({ sheets, args, flags }) {
           ],
         },
       });
-      await logAudit({
-        user: auditUser,
-        sheet: sheetName,
-        cell: `Rows ${startIdx + 1}-${endIdx}`,
-        oldValue: `${rowCount} rooms`,
-        newValue: `${newBlock.length} rows — deleted & re-inserted`,
-        source: `addApartment – ${sheetName} batchUpdate`,
-      });
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: `${sheetName}!A${startIdx + 1}`,
@@ -684,14 +626,6 @@ async function addApartment({ sheets, args, flags }) {
         startIdx + newBlock.length,
         headers.length,
       );
-      await logAudit({
-        user: auditUser,
-        sheet: sheetName,
-        cell: `Rows ${startIdx + 1}-${startIdx + newBlock.length}`,
-        oldValue: 'N/A',
-        newValue: 'Block formatting applied',
-        source: `addApartment  applyBlockFormatting (${sheetName} update)`,
-      });
     } else {
       let lastId = 0;
       for (let i = dataRows.length - 1; i >= 0; i--) {
@@ -725,9 +659,9 @@ async function addApartment({ sheets, args, flags }) {
         user: auditUser,
         sheet: sheetName,
         cell: res.data.updates.updatedRange,
-        oldValue: 'N/A',
-        newValue: `Added block for ${apartment.name} with ${rooms.length} rooms: ${rooms.map(r => r.name).join(', ')}`,
-        source: `addApartment – ${sheetName} values.append`,
+        oldValue: 'New Range',
+        newValue: `Added apartment block: ${apartment.name} (${rooms.length} rooms)`,
+        source: `addApartment: ${sheetName} Append`,
       });
       await applyBlockFormatting(
         sheetName,
@@ -736,14 +670,6 @@ async function addApartment({ sheets, args, flags }) {
         grid.endRowIndex,
         headers.length,
       );
-      await logAudit({
-        user: auditUser,
-        sheet: sheetName,
-        cell: `Rows ${grid.startRowIndex + 1}-${grid.endRowIndex}`,
-        oldValue: 'N/A',
-        newValue: 'Block formatting applied',
-        source: `addApartment – applyBlockFormatting (${sheetName} add)`,
-      });
 
     }
   };
@@ -759,15 +685,6 @@ async function addApartment({ sheets, args, flags }) {
     rentTrackerRows,
   );
 
-  // Final audit log for operation completion
-  await logAudit({
-    user: auditUser,
-    sheet: 'Inventory Data',
-    cell: 'N/A',
-    oldValue: 'Operation Started',
-    newValue: `Operation completed successfully for ${apartment.name} with ${rooms.length} rooms`,
-    source: 'addApartment Command',
-  });
 
   return {
     success: true,

@@ -25,7 +25,7 @@ async function clear({ sheets, args, command }) {
     const vals = oldRes.data.values;
     if (vals && vals.length > 0) {
       // Flatten all values for audit
-      oldValue = vals.map(row => row.join(', ')).join(' | ');
+      oldValue = vals.map(row => row.map(v => v ?? '').join(', ')).join(' | ');
     }
   } catch {
     oldValue = '';
@@ -38,18 +38,14 @@ async function clear({ sheets, args, command }) {
   });
 
   // Always audit (clearing an already-empty range is still an intentional action)
-  try {
-    await logAudit({
-      user: auditUser,
-      sheet: sheetName,
-      cell: range,
-      oldValue: oldValue || '(empty)',
-      newValue: '(cleared)',
-      source: command || 'clear',
-    });
-  } catch (err) {
-    console.warn('Audit log failed:', err.message);
-  }
+  await logAudit({
+    user: flags.user || 'CLEAR_CMD',
+    sheet: sheetName || 'Unknown',
+    cell: range,
+    oldValue: oldValue || '(empty)',
+    newValue: '(cleared)',
+    source: command || 'clear',
+  });
 
   return response.data;
 }

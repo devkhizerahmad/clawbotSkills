@@ -7,6 +7,8 @@ require('dotenv').config({ path: path.join(__dirname, '../../../../.env') });
 
 const uri = process.env.MONGODB_URI;
 
+const { logAudit } = require('../audit/logAudit');
+
 async function saveLeaseContract(data) {
   if (!uri) {
     console.error('MONGODB_URI not found in .env');
@@ -53,6 +55,16 @@ async function saveLeaseContract(data) {
       `Successfully added lease record to MongoDB: ${result.insertedId}`,
     );
 
+    // Audit log for MongoDB insertion
+    await logAudit({
+      user: 'MONGODB_SERVICE',
+      sheet: 'MongoDB: lease-apartment-contract',
+      cell: result.insertedId.toString(),
+      oldValue: '(none)',
+      newValue: `New lease contract for ${data.tenantName} (${data.email})`,
+      source: 'saveLeaseContract',
+    });
+
     return result.insertedId;
   } catch (error) {
     console.error('Error saving lease contract:', error.message);
@@ -96,6 +108,16 @@ async function saveContractEmail(contractId, email) {
     });
 
     console.log(`Email record created: ${result.insertedId}`);
+
+    // Audit log for MongoDB email record
+    await logAudit({
+      user: 'MONGODB_SERVICE',
+      sheet: 'MongoDB: contract-emails',
+      cell: result.insertedId.toString(),
+      oldValue: '(none)',
+      newValue: `Email record for ${email} tied to contract ${contractId}`,
+      source: 'saveContractEmail',
+    });
 
     return result.insertedId;
   } catch (error) {
