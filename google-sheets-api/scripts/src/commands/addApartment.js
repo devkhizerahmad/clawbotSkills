@@ -407,7 +407,7 @@ async function addApartment({ sheets, args, flags }) {
         cell: `${inventorySheetTitle}!A${startRowOnSheet}`,
         oldValue: oldValueStr,
         newValue: `Added ${newRows.length} rooms for ${apartment.name}`,
-        source: 'addApartment: Inventory Add',
+        source: 'addApartment: Inventory add',
       });
       // Apply borders to new area
       await applyBorders(
@@ -612,12 +612,12 @@ async function addApartment({ sheets, args, flags }) {
         requestBody: { values: newBlock },
       });
       await logAudit({
-        user: auditUser,
+        user: auditUser ,
         sheet: sheetName,
         cell: `${sheetName}!A${startIdx + 1}`,
         oldValue: `${rowCount} rooms (old data)`,
         newValue: `${updatedRoomRows.length} rooms written for ${apartment.name}`,
-        source: `addApartment – ${sheetName} values.update`,
+        source: `addApartment – ${sheetName} update`,
       });
       await applyBlockFormatting(
         sheetName,

@@ -24,16 +24,6 @@ async function reconciliationReport({ sheets, args, flags }) {
         );
     }
 
-    // Audit log for operation start
-    // await logAudit({
-    //     user: auditUser,
-    //     sheet: 'Reconciliation_Operation',
-    //     cell: 'N/A',
-    //     oldValue: 'N/A',
-    //     newValue: `Starting rent reconciliation report generation`,
-    //     source: 'RECONCILIATION_CMD',
-    // });
-
     console.log(`Fetching data from ${sheetName} sheet...`);
 
     // 1. Fetch data from Google Sheets
