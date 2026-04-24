@@ -4,7 +4,6 @@ description: OpenClaw skill that installs a Google Sheets CLI with setup steps a
 ---
 
 # Google Sheets API Skill (Advanced)
-
 ## Purpose
 
 Provide a production-ready Google Sheets CLI for OpenClaw. This skill supports data reads/writes, batch operations, formatting, and sheet management with service account authentication and automatic audit logging.
@@ -26,6 +25,14 @@ Provide a production-ready Google Sheets CLI for OpenClaw. This skill supports d
 2. Enable the Google Sheets API.
 3. Create a service account and download its JSON key.
 4. Share target spreadsheets with the service account email.
+
+## The available sheets
+The inventory refers to the inventory tab google sheet: 1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU
+The cleaning refers to the cleaning tab of google sheet: 1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU
+Before change the cleaning date ask for the isMoveout yes or not
+The Apartment Catalog google Drive: https://drive.google.com/drive/folders/1iRfjl7Fao3MHxgi6SQgIUFp3QSCKxKm_
+The rent reconciliation refers to the rent reconciliation tab of google sheet: 1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU
+The lease command ALSO uses the same Google Sheet ID: 1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU (Inventory, Cleaning, Rent Tracker, and Inventory Data Set tabs are all inside this sheet.)
 
 ## Install
 
