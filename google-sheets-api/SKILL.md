@@ -44,6 +44,8 @@ node scripts/sheets-cli.js append 1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU "
 # Bulk update operations
 node scripts/sheets-cli.js allUpdatesCleaning 1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU "add" "7" "days"
 node scripts/sheets-cli.js allUpdatesCleaning 1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU "subtract" "1" "months"
+node scripts/sheets-cli.js cleaning-update '{"range":"Cleaning!X10","cleaningDate":"2026-03-15"}'
+node scripts/sheets-cli.js cleaning-update '{"who":"Ali","contact":"ali@example.com","building":"The Clarendon","cleaningDate":"2026-03-15"}'
 ```
 
 You can also use npm:
@@ -100,11 +102,13 @@ Date Operations:
 
 - `allUpdatesCleaning <spreadsheetId> <add|subtract> <amount> <days|weeks|months|years>` — Arithmetic on all dates in Column X
 
+- `cleaning-update [spreadsheetId] <jsonOr@file>` â€” Chooses standard or advanced cleaning flow based on input completeness
+
 Data:
 
 - `read`, `write`, `append`, `clear`, `batchGet`, `batchWrite`
 - `highlight`, `unhighlight`, `Add apartment`, `generate-reconciliation-report`
-- `lease`, `get-contract-status`
+- `lease`, `get-contract-status`, `cleaning-update`
 
 Formatting:
 
@@ -317,6 +321,27 @@ node scripts/sheets-cli.js write <spreadsheetId> "Cleaning!X10" "2026-03-15" --m
 - "Is this a move-out cleaning? (yes/no)"
 - If yes/true: Apply light blue color and mark as move-out in email notification
 - If no/false: Apply yellow color and mark as regular cleaning in email notification
+
+### Cleaning Update Wrapper
+
+Use `cleaning-update` when input may be partial or fully structured:
+
+```bash
+# Standard flow: exact range + cleaning date
+node scripts/sheets-cli.js cleaning-update '{"range":"Cleaning!X10","cleaningDate":"2026-03-15"}'
+
+# Advanced flow: structured cleaning payload
+node scripts/sheets-cli.js cleaning-update '{"who":"Ali","contact":"ali@example.com","building":"The Clarendon","cleaningDate":"2026-03-15"}'
+
+# Move-out example
+node scripts/sheets-cli.js cleaning-update '{"who":"Ali","contact":"ali@example.com","building":"The Clarendon","cleaningDate":"2026-03-15","moveout":true}'
+```
+
+Decision logic:
+
+- Complete `who`, `contact`, `building/location`, and `cleaningDate` -> advanced flow
+- Partial structured data + exact `range` -> standard flow via existing `write` logic
+- Ambiguous or insufficient input -> returns a follow-up question instead of mutating the sheet
 
 ## Bulk Updates Cleaning Command
 

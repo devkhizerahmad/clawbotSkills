@@ -24,6 +24,7 @@ const { deleteSheet } = require('./deleteSheet');
 const { renameSheet } = require('./renameSheet');
 const { batch } = require('./batch');
 const { allUpdatesCleaning } = require('./allUpdatesCleaning');
+const { cleaningUpdate } = require('./cleaningUpdate');
 const { lease } = require('./lease');
 const { addApartment } = require('./addApartment');
 const { reconciliationReport } = require('./reconciliationReport');
@@ -54,6 +55,7 @@ module.exports = {
   renameSheet,
   batch,
   allUpdatesCleaning,
+  'cleaning-update': cleaningUpdate,
   lease,
   'add-apartment': addApartment,
   'generate-reconciliation-report': reconciliationReport,

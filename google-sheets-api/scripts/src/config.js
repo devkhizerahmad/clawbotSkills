@@ -65,6 +65,7 @@ const HELP_TEXT = `
     highlight <spreadsheetId> <range>
     unhighlight <spreadsheetId> <range>
     lease <spreadsheetId> <leaseDetailsText>
+    cleaning-update [spreadsheetId] <jsonOr@file>
     get-contract-status <email>
     add-apartment <apartmentName>
     reconciliation-report [spreadsheetId]
@@ -93,6 +94,7 @@ const HELP_TEXT = `
   
   Date operations:
     allUpdatesCleaning <spreadsheetId> <add|subtract> <amount> <days|weeks|months|years>
+    cleaning-update [spreadsheetId] <jsonOr@file>
   `;
 
 module.exports = {
