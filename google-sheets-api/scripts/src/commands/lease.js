@@ -22,10 +22,8 @@ async function lease({ sheets, args, flags, command }) {
   let leaseStr = commandArgs.join(' ');
   leaseStr = leaseStr.replace(/\s+/g, ' ').trim();
 
-  // Get audit user from flags
   const auditUser = flags.user || 'LEASE_CMD';
 
-  // If first arg looks like a spreadsheet ID (long alphanumeric) and not lease text
   if (
     commandArgs[0] &&
     commandArgs[0].length > 20 &&
@@ -41,39 +39,31 @@ async function lease({ sheets, args, flags, command }) {
 
   let tenantName = leaseStr.match(/^(.*?) has leased/i)?.[1]?.trim();
 
-  // Try format 2: "Apartment ... to Usman"
   if (!tenantName) {
     tenantName = leaseStr.match(/ to ([a-z .'-]+?) from/i)?.[1]?.trim();
   }
 
-  // Apartment extraction
   const apartment =
     leaseStr.match(/apartment (.*?) Room/i)?.[1]?.trim() ||
     leaseStr.match(/apartment (.*?) to/i)?.[1]?.trim() ||
     leaseStr.match(/apartment (.*?) from/i)?.[1]?.trim();
 
-  // Room
   const room = leaseStr.match(/Room (\d+)/i)?.[1]?.trim();
 
-  // Dates
   const startDate = leaseStr.match(/from (.*?) to/i)?.[1]?.trim();
   const endDate = leaseStr.match(
     /from\s+\d{1,2}\/\d{1,2}\/\d{4}\s+to\s+(\d{1,2}\/\d{1,2}\/\d{4})/i,
   )?.[1];
-  // Rent
   const amountMatch = leaseStr.match(/(?:amount|for)\s*\$?(\d+)/i);
   const amount = amountMatch?.[1]?.trim();
 
-  // Prorate
   const prorateMatch = leaseStr.match(/prorate\s*\$?(\d+)/i);
   const prorateRaw = prorateMatch?.[1]?.trim();
 
-  // Contact
   const contact = leaseStr
     .match(/(?:number|contact)\s*(?:is)?\s*(\d+)/i)?.[1]
     ?.trim();
 
-  // Email
   const emailMatch = leaseStr.match(
     /(?:email|emails)\s*(?:is)?\s*([^\s$.]+@[^\s$.]+\.[^\s$.]+)/i,
   );
@@ -114,7 +104,6 @@ async function lease({ sheets, args, flags, command }) {
     contact,
     email,
   };
-
   const pdfPath = await generateAgreementPdf(agreementData, true, false);
 
   // 2. Save Lease to MongoDB

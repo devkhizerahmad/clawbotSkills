@@ -24,11 +24,12 @@ const { deleteSheet } = require('./deleteSheet');
 const { renameSheet } = require('./renameSheet');
 const { batch } = require('./batch');
 const { allUpdatesCleaning } = require('./allUpdatesCleaning');
+const { cleaningUpdate } = require('./cleaningUpdate');
 const { lease } = require('./lease');
 const { addApartment } = require('./addApartment');
 const { reconciliationReport } = require('./reconciliationReport');
 const { getContractStatus } = require('./getContractStatus');
-const { getInventoryContext } = require('./getInventoryContext');
+const { cacheStats } = require('./cacheStats');
 
 module.exports = {
   read,
@@ -55,9 +56,11 @@ module.exports = {
   renameSheet,
   batch,
   allUpdatesCleaning,
+  'cleaning-update': cleaningUpdate,
   lease,
   'add-apartment': addApartment,
   'generate-reconciliation-report': reconciliationReport,
   'get-contract-status': getContractStatus,
-  'get-inventory-context': getInventoryContext,
+  'cache-stats': cacheStats,
+  'tenant-mapping-stats': cacheStats,
 };

@@ -39,7 +39,7 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
       rows[i][0] &&
       rows[i][0].toLowerCase().includes(apartment.toLowerCase())
     ) {
-      rowIndex = i + 1; // 1-indexed
+      rowIndex = i + 1;
       break;
     }
   }
@@ -54,13 +54,12 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
     `Found apartment at row ${rowIndex}. Updating Inventory Sheet...`,
   );
 
-  // Get current values before updating for audit log
   const currentValuesResp = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: `${sheetName}!D${rowIndex}:U${rowIndex}`,
   });
   const currentValues = currentValuesResp.data.values?.[0] || [];
-  const oldValueStr = currentValues.length > 0 
+  const oldValueStr = currentValues.length > 0
     ? `Tenant: ${currentValues[0] || 'N/A'}, Status: ${currentValues[4] || 'N/A'}`
     : 'No data';
 
@@ -82,7 +81,6 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
     },
   });
 
-  // Audit Log for Inventory Sheet Update
   await logAudit({
     user: auditUser,
     sheet: sheetName,
@@ -91,7 +89,6 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
     newValue: `Tenant: ${tenantName}, Start: ${startDate}, Rent: $${amount}, Prorate: $${prorate}, Status: Occupied`,
     source: 'LEASE_SERVICE',
   });
-
   // --- Update Cleaning Sheet ---
   try {
     const cleaningSheetName = 'Cleaning';
@@ -164,7 +161,7 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
     console.error('Failed to update Cleaning sheet:', err.message);
   }
 
-  // --- Update Rent Tracker Sheet ---
+  // --- Update Rent Tracker Sheet --- 
   try {
     const rentSheetName = 'Rent Tracker';
     const rentResp = await sheets.spreadsheets.values.get({
@@ -310,7 +307,6 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
   } catch (err) {
     console.error('Failed to update Inventory Data sheet:', err.message);
   }
-
 
   return {
     success: true,
