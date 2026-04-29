@@ -47,6 +47,7 @@ const READ_ONLY_COMMANDS = new Set([
   'info',
   'getFormat',
   'revisions',
+  'get-inventory-context',
 ]);
 
 const HELP_TEXT = `
@@ -68,7 +69,7 @@ const HELP_TEXT = `
     get-contract-status <email>
     add-apartment <apartmentName>
     reconciliation-report [spreadsheetId]
-
+    get-inventory-context <spreadsheetId>
 
   Formatting and layout:
     format <spreadsheetId> <range> <formatJsonOr@file>

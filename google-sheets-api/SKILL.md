@@ -72,6 +72,7 @@ Supported sources (first match wins):
 
 ## Input Rules
 
+- **Inventory Pre-processing**: ALWAYS run `node scripts/sheets-cli.js get-inventory-context <spreadsheetId>` before making any edits or automation tasks on the `Inventory` sheet. This command dynamically extracts the 'Who', 'Room Type', and 'Unit Cross Street' columns and provides structured JSON context. Use this context to determine the precise rows and columns to edit.
 - If cleaning sheet is being edited and you have been asked to update the cleaning date, make sure to update the cleaning date column (Column X) in the Cleaning sheet.
 - **Syncing Apartments**: If the user asks to "Add apartment [apartment name]" or sync apartment data, use the `node scripts/sheets-cli.js Add apartment "[apartment name]"` command. This command automatically:
   1. Fetches data and room links from Google Drive.
@@ -111,7 +112,7 @@ Data:
 
 - `read`, `write`, `append`, `clear`, `batchGet`, `batchWrite`
 - `highlight`, `unhighlight`, `Add apartment`, `generate-reconciliation-report`
-- `lease`, `get-contract-status`
+- `lease`, `get-contract-status`, `get-inventory-context`
 
 Formatting:
 
