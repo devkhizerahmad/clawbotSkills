@@ -3,6 +3,9 @@
 const {
   executeWithOptionalAudit,
 } = require('../services/audit/executeWithOptionalAudit');
+const {
+  getInventoryMutationAuditSource,
+} = require('../services/audit/inventoryMutationAudit');
 const { jsonFromArg } = require('../utils/jsonFromArg');
 const { parseA1Range } = require('../utils/parseA1Range');
 const { getSheetIdByName } = require('../services/sheets/getSheetIdByName');
@@ -30,10 +33,16 @@ async function append({ sheets, args, flags, command, isMutation }) {
     ? JSON.stringify(values.slice(0, 50)) + `, ... (+${values.length - 50} more rows)`
     : JSON.stringify(values);
 
-const newValue = summarizedNewValue;
+  const newValue = summarizedNewValue;
   // const newValue = JSON.stringify(values);
 
   const auditUser = flags.user || 'ASSISTANT';
+  const sheetName = range.includes('!') ? range.split('!')[0].trim() : '';
+  const auditSource =
+    getInventoryMutationAuditSource({
+      sheetName,
+      rowCount: values?.length || 1,
+    }) || command;
 
   return executeWithOptionalAudit({
     isMutation,
@@ -42,6 +51,7 @@ const newValue = summarizedNewValue;
     range,
     newValue,
     user: auditUser,
+    auditSource,
     execute: async () => {
       console.log(`Appending data to ${spreadsheetId}, range ${range}...`);
       const response = await sheets.spreadsheets.values.append({

@@ -25,7 +25,7 @@ async function getInventoryContext({ sheets, args }) {
     
     row.forEach((cell, idx) => {
       const val = (cell || '').toString().toLowerCase().trim();
-      if (val === 'who') { 
+      if (val === 'who' || val === "who's" || val === 'whos') { 
         colMap.who = idx; 
         foundCount++; 
       } else if (val === 'room type') { 

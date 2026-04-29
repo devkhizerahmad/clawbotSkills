@@ -10,6 +10,9 @@ const { updateStatus } = require('../services/sheets/updateStatus');
 const {
   formatCleaningDateCell,
 } = require('../services/email/formatCleaningDateCell');
+const {
+  getInventoryMutationAuditSource,
+} = require('../services/audit/inventoryMutationAudit');
 const { CLEANING_SPREADSHEET_ID, WRITE_SCOPE } = require('../config');
 const { getSheetsClient } = require('../auth');
 
@@ -21,7 +24,13 @@ async function write({ sheets, args, flags, command, isMutation }) {
   if (!spreadsheetId || !range || !dataRaw)
     throw new Error('Usage: write <spreadsheetId> <range> <jsonOr@file>');
 
-  let values = jsonFromArg(dataRaw, 'values');
+  let values;
+  try {
+    values = jsonFromArg(dataRaw, 'values');
+  } catch (error) {
+    // Support direct single-cell text updates without forcing JSON syntax.
+    values = [[dataRaw]];
+  }
   if (
     values &&
     typeof values === 'object' &&
@@ -33,6 +42,12 @@ async function write({ sheets, args, flags, command, isMutation }) {
   const newValue = values?.[0]?.[0];
 
   const auditUser = flags.user || 'ASSISTANT';
+  const sheetName = range.includes('!') ? range.split('!')[0].trim() : '';
+  const auditSource =
+    getInventoryMutationAuditSource({
+      sheetName,
+      rowCount: values?.length || 1,
+    }) || command;
 
   return executeWithOptionalAudit({
     isMutation,
@@ -41,6 +56,7 @@ async function write({ sheets, args, flags, command, isMutation }) {
     range,
     newValue,
     user: auditUser,
+    auditSource,
 
     execute: async () => {
       const sheetsClient = getSheetsClient([WRITE_SCOPE]);

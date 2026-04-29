@@ -11,6 +11,7 @@ async function executeWithOptionalAudit({
   newValue,
   isMutation,
   user = 'ASSISTANT',
+  auditSource,
   execute,
 }) {
   const sheets = getSheetsClient([WRITE_SCOPE]);
@@ -49,7 +50,7 @@ async function executeWithOptionalAudit({
         cell: range,
         oldValue: oldValue || '(empty)',
         newValue: newValue || '(cleared)',
-        source: command || 'SYSTEM',
+        source: auditSource || command || 'SYSTEM',
       });
     }
 

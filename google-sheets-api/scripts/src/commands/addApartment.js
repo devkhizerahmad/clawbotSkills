@@ -7,6 +7,9 @@ const { INVENTORY_SPREADSHEET_ID } = require('../config');
 const { parseA1Range } = require('../utils/parseA1Range');
 const { getSheetIdByName } = require('../services/sheets/getSheetIdByName');
 const { logAudit } = require('../services/audit/logAudit');
+const {
+  getInventoryMutationAuditSource,
+} = require('../services/audit/inventoryMutationAudit');
 
 
 const INVENTORY_DATA_HEADERS = [
@@ -320,7 +323,10 @@ async function addApartment({ sheets, args, flags }) {
         cell: `${inventorySheetTitle}!A${startIdx + 1}`,
         oldValue: `Old apartment data (${inventoryMatches.length} rooms)`,
         newValue: `Updated to ${rooms.length} rooms for ${apartment.name}`,
-        source: 'addApartment: Inventory Values Update',
+        source: getInventoryMutationAuditSource({
+          sheetName: inventorySheetTitle,
+          rowCount: updatedRows.length,
+        }),
       });
       // Apply borders to updated area
       await applyBorders(
@@ -407,7 +413,10 @@ async function addApartment({ sheets, args, flags }) {
         cell: `${inventorySheetTitle}!A${startRowOnSheet}`,
         oldValue: oldValueStr,
         newValue: `Added ${newRows.length} rooms for ${apartment.name}`,
-        source: 'addApartment: Inventory add',
+        source: getInventoryMutationAuditSource({
+          sheetName: inventorySheetTitle,
+          rowCount: newRows.length,
+        }),
       });
       // Apply borders to new area
       await applyBorders(
@@ -435,7 +444,10 @@ async function addApartment({ sheets, args, flags }) {
         cell: appendRes.data.updates.updatedRange,
         oldValue: `${inventoryRows.length} existing rows`,
         newValue: `${inventoryRows.length + newRows.length} total rows after append`,
-        source: 'addApartment – Inventory values.append',
+        source: getInventoryMutationAuditSource({
+          sheetName: inventorySheetTitle,
+          rowCount: newRows.length,
+        }),
       });
 
       await applyBorders(
