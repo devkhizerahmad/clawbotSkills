@@ -29,6 +29,7 @@ const { lease } = require('./lease');
 const { addApartment } = require('./addApartment');
 const { reconciliationReport } = require('./reconciliationReport');
 const { getContractStatus } = require('./getContractStatus');
+const { cacheStats } = require('./cacheStats');
 
 module.exports = {
   read,
@@ -60,4 +61,6 @@ module.exports = {
   'add-apartment': addApartment,
   'generate-reconciliation-report': reconciliationReport,
   'get-contract-status': getContractStatus,
+  'cache-stats': cacheStats,
+  'tenant-mapping-stats': cacheStats,
 };

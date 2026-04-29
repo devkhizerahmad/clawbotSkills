@@ -47,6 +47,7 @@ const READ_ONLY_COMMANDS = new Set([
   'info',
   'getFormat',
   'revisions',
+  'cache-stats',
 ]);
 
 const HELP_TEXT = `

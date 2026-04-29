@@ -6,7 +6,8 @@
   "scripts": {
     "sheets": "node scripts/sheets-cli.js",
     "help": "node scripts/sheets-cli.js help",
-    "test:advanced-cleaning": "node scripts/test-advanced-cleaning-update.js"
+    "test:advanced-cleaning": "node scripts/test-advanced-cleaning-update.js",
+    "test:cleaning-scenarios": "node scripts/test-cleaning-update-scenarios.js"
   },
   "dependencies": {
     "dotenv": "^17.3.1",
