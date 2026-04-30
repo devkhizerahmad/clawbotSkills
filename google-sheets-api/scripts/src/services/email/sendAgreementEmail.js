@@ -78,7 +78,6 @@ This is an automated notification from ClawdBot.
     }
   } catch (error) {
     console.error('Email send failed:', error.message);
-    throw error;
   }
 }
 

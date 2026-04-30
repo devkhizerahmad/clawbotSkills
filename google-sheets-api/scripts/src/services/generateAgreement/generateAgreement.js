@@ -17,15 +17,11 @@ function sanitizeFileName(fileName) {
 }
 
 function getOutputPath(fileName) {
-  // Use Downloads folder for CLI tool for better accessibility
-  const downloadsFolder = path.join(os.homedir(), 'Downloads');
-  return path.join(downloadsFolder, sanitizeFileName(fileName));
+  return path.join(os.tmpdir(), sanitizeFileName(fileName));
 }
 
 function getDefaultFileName(data) {
-  return `${data.tenantName} ${
-    data.sublesseeSignatureImage ? 'Signed ' : ''
-  }Sublease Agreement.pdf`;
+  return `${data.tenantName} Sublease Agreement.pdf`;
 }
 
 function sleep(ms) {
@@ -62,7 +58,7 @@ async function readErrorMessage(response) {
   return text || 'Request failed';
 }
 
-function saveBufferToPath(buffer, fileName) {
+async function saveBufferToTemp(buffer, fileName) {
   const outputPath = getOutputPath(fileName);
   fs.writeFileSync(outputPath, buffer);
   return outputPath;
@@ -133,7 +129,7 @@ async function generateAgreementPdf(
     }
 
     const buffer = Buffer.from(result.base64, 'base64');
-    const outputPath = saveBufferToPath(
+    const outputPath = await saveBufferToTemp(
       buffer,
       result.filename || defaultFileName,
     );
@@ -143,7 +139,7 @@ async function generateAgreementPdf(
 
   const arrayBuffer = await response.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
-  const outputPath = saveBufferToPath(buffer, defaultFileName);
+  const outputPath = await saveBufferToTemp(buffer, defaultFileName);
   console.log(`PDF saved to: ${outputPath}`);
   return outputPath;
 }
