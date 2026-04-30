@@ -1,7 +1,6 @@
 'use strict';
 
 const nodemailer = require('nodemailer');
-const fs = require('fs');
 const path = require('path');
 const { EMAIL_CONFIG } = require('../../config');
 const { logAudit } = require('../audit/logAudit');
@@ -70,7 +69,7 @@ This is an automated notification from ClawdBot.
         user: 'LEASE_SERVICE',
         sheet: 'Lease_Email',
         cell: 'N/A',
-        oldValue: agreementEmailSent ? 'Email sent' : 'Email not sent',
+        oldValue: 'Email queued',
         newValue: `Lease agreement sent to ${emailTo} for ${tenantName}`,
         source: 'AGREEMENT_EMAIL',
       });
