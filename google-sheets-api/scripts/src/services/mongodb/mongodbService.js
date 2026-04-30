@@ -11,7 +11,8 @@ const { logAudit } = require('../audit/logAudit');
 
 async function saveLeaseContract(data) {
   if (!uri) {
-    throw new Error('MONGODB_URI not found in .env');
+    console.error('MONGODB_URI not found in .env');
+    return;
   }
 
   const client = new MongoClient(uri);
@@ -67,7 +68,6 @@ async function saveLeaseContract(data) {
     return result.insertedId;
   } catch (error) {
     console.error('Error saving lease contract:', error.message);
-    throw error;
   } finally {
     await client.close();
   }
