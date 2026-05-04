@@ -56,6 +56,10 @@ async function lease({ sheets, args, flags, command }) {
   )?.[1];
   const amountMatch = leaseStr.match(/(?:amount|for)\s*\$?(\d+)/i);
   const amount = amountMatch?.[1]?.trim();
+  const securityDepositMatch = leaseStr.match(
+    /security\s*deposit(?:\s*(?:is|of|:))?\s*\$?(\d+)/i,
+  );
+  const securityDeposit = securityDepositMatch?.[1]?.trim();
 
   const prorateMatch = leaseStr.match(/prorate\s*\$?(\d+)/i);
   const prorateRaw = prorateMatch?.[1]?.trim();
@@ -84,6 +88,22 @@ async function lease({ sheets, args, flags, command }) {
     );
   }
 
+  if (!securityDeposit) {
+    throw new Error(
+      'Security deposit amount is required. If the lease agreement does not mention it, please provide it explicitly (e.g., "security deposit 1500"). A plain number will be treated as a dollar amount.',
+    );
+  }
+
+  if (
+    !securityDeposit ||
+    securityDeposit === '0' ||
+    parseInt(securityDeposit) <= 0
+  ) {
+    throw new Error(
+      'Security deposit amount must be greater than zero. Please specify a valid amount (e.g., "security deposit 1500" or "security deposit $1500").',
+    );
+  }
+
   // Validate prorate is not zero if provided
   if (prorateRaw && (prorateRaw === '0' || parseInt(prorateRaw) <= 0)) {
     throw new Error(
@@ -98,6 +118,7 @@ async function lease({ sheets, args, flags, command }) {
   console.log('Start Date:', startDate);
   console.log('End Date:', endDate);
   console.log('Amount:', amount);
+  console.log('Security Deposit:', securityDeposit);
   console.log('Prorate:', prorate);
   console.log('Contact:', contact);
   console.log('Email:', email);
@@ -110,7 +131,7 @@ async function lease({ sheets, args, flags, command }) {
     propertyAddress: apartment,
     rent: amount,
     proRateRent: prorate,
-    securityDeposit: amount,
+    securityDeposit,
     leaseStartDate: startDate,
     leaseEndDate: endDate,
     agreementDate: new Date().toISOString().split('T')[0],
