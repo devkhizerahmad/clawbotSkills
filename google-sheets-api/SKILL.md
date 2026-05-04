@@ -83,6 +83,11 @@ Supported sources (first match wins):
   3. Updates the `Inventory Data` and `Rent Tracker` sheets.
   4. Applies necessary formatting and borders.
   5. Skips the `Cleaning` sheet.
+- **Generating Leases / Pro-rated Confirmations & Security Deposit**: When the user provides a simple lease command (e.g., "generate lease for Ali for Room 2, rent $500"), check if the user has mentioned a "prorate" amount and a "security deposit".
+  - **Prorated Check**: If the user DID NOT mention a prorate amount, DO NOT run the command yet. Ask the user: "Is this a simple agreement or a pro-rated agreement? If it's pro-rated, please tell me the prorated amount. If it's simple, just say 'simple'."
+  - **Security Deposit Check**: If the user DID NOT mention a security deposit amount, ask them: "What is the security deposit amount for this lease? If it's the same as the rent, just say 'same'."
+  - Wait for the user's reply for both questions.
+  - When executing the command, append `prorate $<amount>` (if prorated) and `deposit $<amount>` (if security deposit is different from rent) to the lease string. If they say the deposit is the "same", you don't need to append the deposit keyword.
 - **Generating Reconciliation Report**: If the user asks to "Generate Reconciliation Report", use the `node scripts/sheets-cli.js generate-reconciliation-report` command. This command automatically:
   1. Fetches data from the `Rent Reconciliation` sheet.
   2. Generates a PDF report with the reconciliation data.

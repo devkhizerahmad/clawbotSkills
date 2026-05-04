@@ -60,6 +60,9 @@ async function lease({ sheets, args, flags, command }) {
   const prorateMatch = leaseStr.match(/prorate\s*\$?(\d+)/i);
   const prorateRaw = prorateMatch?.[1]?.trim();
 
+  const depositMatch = leaseStr.match(/(?:deposit|security)\s*\$?(\d+)/i);
+  const depositRaw = depositMatch?.[1]?.trim();
+
   const contact = leaseStr
     .match(/(?:number|contact)\s*(?:is)?\s*(\d+)/i)?.[1]
     ?.trim();
@@ -110,7 +113,7 @@ async function lease({ sheets, args, flags, command }) {
     propertyAddress: apartment,
     rent: amount,
     proRateRent: prorate,
-    securityDeposit: amount,
+    securityDeposit: depositRaw || amount,
     leaseStartDate: startDate,
     leaseEndDate: endDate,
     agreementDate: new Date().toISOString().split('T')[0],
