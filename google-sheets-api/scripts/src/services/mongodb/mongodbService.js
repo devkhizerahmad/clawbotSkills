@@ -7,6 +7,8 @@ require('dotenv').config({ path: path.join(__dirname, '../../../../.env') });
 
 const uri = process.env.MONGODB_URI;
 
+console.log("MongoDB URl : ", uri)
+
 const { logAudit } = require('../audit/logAudit');
 
 async function saveLeaseContract(data) {
