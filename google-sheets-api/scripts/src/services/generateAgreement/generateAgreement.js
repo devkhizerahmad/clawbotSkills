@@ -4,6 +4,16 @@ const path = require('path');
 const os = require('os');
 
 /**
+ * Formats a value as currency with $ prefix
+ * @param {string} value - The numeric value to format
+ * @returns {string} Formatted currency string with $ prefix, or empty string if value is falsy
+ */
+function formatCurrency(value) {
+  if (!value || value.trim() === '') return '';
+  return `$${value.trim()}`;
+}
+
+/**
  * @typedef {Object} AgreementData
  * @property {string} tenantName
  * @property {string} sublessorName
@@ -91,6 +101,19 @@ async function generateAgreementPdf(
   includeLetterhead,
   addSublesseeSignature = false,
 ) {
+  // Validate amounts are not zero or empty
+  if (!data.rent || data.rent.trim() === '' || data.rent === '0' || parseInt(data.rent) <= 0) {
+    throw new Error('Rent amount must be provided and greater than zero.');
+  }
+
+  if (data.securityDeposit && (data.securityDeposit === '0' || parseInt(data.securityDeposit) <= 0)) {
+    throw new Error('Security deposit must be greater than zero if provided.');
+  }
+
+  if (data.proRateRent && (data.proRateRent === '0' || parseInt(data.proRateRent) <= 0)) {
+    throw new Error('Prorated rent must be greater than zero if provided.');
+  }
+
   const pdf = new jsPDF('p', 'mm', 'letter');
   const pageWidth = pdf.internal.pageSize.getWidth();
   const margin = 20;
@@ -213,13 +236,13 @@ async function generateAgreementPdf(
 
   // Rent and Security Deposit
   pdf.setFontSize(10);
-  pdf.text(`1. Rent: $${data.rent}`, margin + 4, yPos);
+  pdf.text(`1. Rent: ${formatCurrency(data.rent)}`, margin + 4, yPos);
   yPos += hasLetterhead ? 4 : 5;
 
   let clauseNumber = 2;
   if (data.proRateRent && data.proRateRent.trim() !== '') {
     pdf.text(
-      `${clauseNumber}. Prorated Rent: $${data.proRateRent}`,
+      `${clauseNumber}. Prorated Rent: ${formatCurrency(data.proRateRent)}`,
       margin + 4,
       yPos,
     );
@@ -228,7 +251,7 @@ async function generateAgreementPdf(
   }
 
   pdf.text(
-    `${clauseNumber}. Security Deposit: $${data.securityDeposit}`,
+    `${clauseNumber}. Security Deposit: ${formatCurrency(data.securityDeposit)}`,
     margin + 4,
     yPos,
   );

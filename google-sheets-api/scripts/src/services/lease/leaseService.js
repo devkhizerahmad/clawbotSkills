@@ -3,6 +3,16 @@
 const { logAudit } = require('../audit/logAudit');
 
 /**
+ * Formats a value as currency with $ prefix
+ * @param {string} value - The numeric value to format
+ * @returns {string} Formatted currency string with $ prefix, or empty string if value is falsy
+ */
+function formatCurrency(value) {
+  if (!value || value.trim() === '') return '';
+  return `$${value.trim()}`;
+}
+
+/**
  * Updates all relevant sheets for a new lease.
  * @param {Object} params
  * @param {Object} params.sheets - Google Sheets client
@@ -68,8 +78,8 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
   const updates = [
     { range: `${sheetName}!D${rowIndex}`, values: [[tenantName]] },
     { range: `${sheetName}!E${rowIndex}`, values: [[startDate]] },
-    { range: `${sheetName}!F${rowIndex}`, values: [[`$${amount}`]] },
-    { range: `${sheetName}!G${rowIndex}`, values: [[`$${prorate}`]] },
+    { range: `${sheetName}!F${rowIndex}`, values: [[formatCurrency(amount)]] },
+    { range: `${sheetName}!G${rowIndex}`, values: [[formatCurrency(prorate)]] },
     { range: `${sheetName}!U${rowIndex}`, values: [['Occupied']] },
   ];
 
@@ -86,7 +96,7 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
     sheet: sheetName,
     cell: `D${rowIndex}:U${rowIndex}`,
     oldValue: oldValueStr,
-    newValue: `Tenant: ${tenantName}, Start: ${startDate}, Rent: $${amount}, Prorate: $${prorate}, Status: Occupied`,
+    newValue: `Tenant: ${tenantName}, Start: ${startDate}, Rent: ${formatCurrency(amount)}, Prorate: ${formatCurrency(prorate)}, Status: Occupied`,
     source: 'LEASE_SERVICE',
   });
   // --- Update Cleaning Sheet ---
@@ -207,7 +217,7 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
             },
             {
               range: `${rentSheetName}!E${rentRowIndex}`,
-              values: [[`$${amount}`]],
+              values: [[formatCurrency(amount)]],
             },
             {
               range: `${rentSheetName}!G${rentRowIndex}`,
@@ -227,7 +237,7 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
         sheet: rentSheetName,
         cell: `D${rentRowIndex}:H${rentRowIndex}`,
         oldValue: rentOldValueStr,
-        newValue: `Room ${room}: Tenant: ${tenantName}, Rent: $${amount}, Email: ${email || 'N/A'}, Contact: ${contact || 'N/A'}`,
+        newValue: `Room ${room}: Tenant: ${tenantName}, Rent: ${formatCurrency(amount)}, Email: ${email || 'N/A'}, Contact: ${contact || 'N/A'}`,
         source: 'LEASE_SERVICE',
       });
     }
@@ -288,7 +298,7 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
             },
             {
               range: `${invDataSheetName}!E${invDataRowIndex}`,
-              values: [[`$${amount}`]],
+              values: [[formatCurrency(amount)]],
             },
           ],
         },
@@ -300,7 +310,7 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
         sheet: invDataSheetName,
         cell: `D${invDataRowIndex}:E${invDataRowIndex}`,
         oldValue: invDataOldValueStr,
-        newValue: `Room ${room}: Tenant: ${tenantName}, Rent: $${amount}`,
+        newValue: `Room ${room}: Tenant: ${tenantName}, Rent: ${formatCurrency(amount)}`,
         source: 'LEASE_SERVICE',
       });
     }

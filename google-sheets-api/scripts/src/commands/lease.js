@@ -77,6 +77,20 @@ async function lease({ sheets, args, flags, command }) {
     );
   }
 
+  // Validate amount is not zero or empty
+  if (!amount || amount === '0' || parseInt(amount) <= 0) {
+    throw new Error(
+      'Lease amount must be provided and greater than zero. Please specify a valid amount (e.g., "amount 1500" or "for $1500").',
+    );
+  }
+
+  // Validate prorate is not zero if provided
+  if (prorateRaw && (prorateRaw === '0' || parseInt(prorateRaw) <= 0)) {
+    throw new Error(
+      'Prorated amount must be greater than zero if provided. Please specify a valid prorate amount (e.g., "prorate 800" or "prorate $800").',
+    );
+  }
+
   console.log('Parsed details:');
   console.log('Tenant Name:', tenantName);
   console.log('Apartment:', apartment);
