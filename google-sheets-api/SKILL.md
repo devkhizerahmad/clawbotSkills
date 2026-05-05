@@ -367,9 +367,9 @@ User Request
      │ (if mapping fails or expired)
      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ LAYER 2: Cache + Index (Fast - O(1) with cache)            │
+│ LAYER 2: Cache + Index (Fast - O(1) with cache)             │
 │ • In-memory cache of sheet data                             │
-│ • Indexes: byEmail, byNameBuilding, byBuilding             │
+│ • Indexes: byEmail, byNameBuilding, byBuilding              │
 │ • Result: 0.5-1 second update                               │
 │ • Expiry: 5 minutes (auto-refresh)                          │
 │ • Storage: Memory (process only)                            │
@@ -377,12 +377,12 @@ User Request
      │ (if cache expired or not found)
      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ LAYER 3: Linear Search (Slow but Works - O(n))             │
+│ LAYER 3: Linear Search (Slow but Works - O(n))              │
 │ • Fetches sheet data from Google Sheets                     │
 │ • Loops through all rows to find match                      │
 │ • Builds cache and mapping for future use                   │
 │ • Result: 2-5 seconds update                                │
-│ • This is the ORIGINAL logic (fully preserved)             │
+│ • This is the ORIGINAL logic (fully preserved)              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
