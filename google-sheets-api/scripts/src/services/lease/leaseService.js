@@ -247,10 +247,10 @@ async function updateLeaseSheets({ sheets, spreadsheetId, data, auditUser = 'LEA
 
   // --- Update Inventory Data Sheet ---
   try {
-    const invDataSheetName = 'Inventory Data';
+    const invDataSheetName = 'Inventory Data Set';
     const invDataResp = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${invDataSheetName}!B:C`,
+      range: `'${invDataSheetName}'!B:C`,
     });
     const invDataRows = invDataResp.data.values || [];
     let invDataRowIndex = -1;

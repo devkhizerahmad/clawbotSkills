@@ -76,6 +76,11 @@ async function saveLeaseContract(data) {
 }
 
 async function emailExists(email) {
+  if (!uri) {
+    console.log('MONGODB_URI not found, skipping email check');
+    return false;
+  }
+
   const client = new MongoClient(uri);
 
   try {
@@ -89,12 +94,20 @@ async function emailExists(email) {
     });
 
     return !!result;
+  } catch (error) {
+    console.error('Error checking email exists:', error.message);
+    return false;
   } finally {
     await client.close();
   }
 }
 
 async function saveContractEmail(contractId, email) {
+  if (!uri) {
+    console.log('MONGODB_URI not found, skipping email record save');
+    return null;
+  }
+
   const client = new MongoClient(uri);
 
   try {
@@ -128,13 +141,19 @@ async function saveContractEmail(contractId, email) {
       return null;
     }
 
-    throw error;
+    console.error('Error saving contract email:', error.message);
+    return null;
   } finally {
     await client.close();
   }
 }
 
 async function getLeaseContractStatus(email) {
+  if (!uri) {
+    console.log('MONGODB_URI not found, cannot check contract status');
+    return null;
+  }
+
   const client = new MongoClient(uri);
 
   try {
@@ -154,6 +173,9 @@ async function getLeaseContractStatus(email) {
     });
 
     return result;
+  } catch (error) {
+    console.error('Error getting contract status:', error.message);
+    return null;
   } finally {
     await client.close();
   }

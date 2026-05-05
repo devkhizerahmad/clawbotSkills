@@ -83,11 +83,50 @@ Supported sources (first match wins):
   3. Updates the `Inventory Data` and `Rent Tracker` sheets.
   4. Applies necessary formatting and borders.
   5. Skips the `Cleaning` sheet.
-- **Generating Leases / Pro-rated Confirmations & Security Deposit**: When the user provides a simple lease command (e.g., "generate lease for Ali for Room 2, rent $500"), check if the user has mentioned a "prorate" amount and a "security deposit".
-  - **Prorated Check**: If the user DID NOT mention a prorate amount, DO NOT run the command yet. Ask the user: "Is this a simple agreement or a pro-rated agreement? If it's pro-rated, please tell me the prorated amount. If it's simple, just say 'simple'."
-  - **Security Deposit Check**: If the user DID NOT mention a security deposit amount, ask them: "What is the security deposit amount for this lease? If it's the same as the rent, just say 'same'."
-  - Wait for the user's reply for both questions.
-  - When executing the command, append `prorate $<amount>` (if prorated) and `deposit $<amount>` (if security deposit is different from rent) to the lease string. If they say the deposit is the "same", you don't need to append the deposit keyword.
+- **Generating Leases / Pro-rated Confirmations & Security Deposit**: When the user provides a lease command (e.g., "Apartment 90 Washington room 1 to Ali from 11/11/2026 to 12/12/2026 for amount 1200"), the system intelligently collects missing information before proceeding.
+
+  **Intelligent Lease Information Collection Flow:**
+
+  1. **Initial Verification**: When a user submits a lease amount, the system first verifies if both a pro-rated amount and a security deposit have been provided in the request.
+
+  2. **Both Present**: If both pro-rate amount and security deposit are present → proceed immediately with lease generation.
+
+  3. **Conditional Check (Missing Information)**: If any information is missing, the system initiates an intelligent conditional check:
+
+     **Step 1: Pro-rate Amount Check**
+     - First ask: "Is this a simple agreement or a pro-rated agreement?"
+     - If user says **yes** (pro-rated) → request: "What is the prorated amount?"
+     - If user says **no** (simple) → proceed to security deposit check
+     - Wait for user's response before proceeding
+
+     **Step 2: Security Deposit Check**
+     - If security deposit was not provided initially → ask: "Is a security deposit required for this lease?"
+     - If user says **yes** → request: "What is the security deposit amount?"
+     - If user says **no** → proceed with simple lease (no security deposit)
+     - Wait for user's response before proceeding
+
+  4. **Intelligent Gap Filling**: The system intelligently fills the gaps based on what's missing:
+     - If both prorate AND security deposit are missing → ask for both in sequence
+     - If only prorate is missing → only ask for prorate
+     - If only security deposit is missing → only ask for security deposit
+     - Skip any questions for information already provided
+
+  5. **Command Execution**: Once all required information is collected:
+     - Append `prorate $<amount>` (if prorated and not simple)
+     - Append `deposit $<amount>` (if security deposit is required and provided)
+     - If user says deposit is "same as rent" → use rent amount automatically
+     - Execute the lease command with complete information
+
+  **Example Dialog:**
+
+  ```
+  User: "Apartment 90 Washington room 1 to Ali from 11/11/2026 to 12/12/2026 for amount 1200"
+  Agent: "Is this a simple agreement or a pro-rated agreement?"
+  User: "pro 4500"
+  Agent: "Got it — pro-rated agreement for $4500. What is the security deposit amount for this lease? If it's the same as the rent ($1200), just say 'same'."
+  User: "same"
+  Agent: [Executes lease with: prorate $4500, deposit $1200 (same as rent)]
+  ```
 - **Generating Reconciliation Report**: If the user asks to "Generate Reconciliation Report", use the `node scripts/sheets-cli.js generate-reconciliation-report` command. This command automatically:
   1. Fetches data from the `Rent Reconciliation` sheet.
   2. Generates a PDF report with the reconciliation data.
