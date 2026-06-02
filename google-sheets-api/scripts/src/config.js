@@ -22,7 +22,7 @@ const AUDIT_SHEET_NAME = 'Audit_Log';
 const EMAIL_USER = 'vdutta1485@gmail.com';
 const EMAIL_USER_LETTERHEAD = 'devkhizerahmad@gmail.com';
 //const EMAIL_PASS = 'aief unbt nkfa smrj';
-const EMAIL_PASS = 'soxa rgqv ebrs ofrf';
+const EMAIL_PASS = 'ofhe pslg flxv jlbe';
 const EMAIL_PASS_LETTERHEAD = 'aief unbt nkfa smrj';
 //const EMAIL_RECIPIENT = 'devkhizerahmad@gmail.com';
 const EMAIL_RECIPIENT = 'vdutta1485@gmail.com';
@@ -45,8 +45,8 @@ const CLEANING_DATE_COLOR = {
 // ===== EMAIL CONFIGURATION =====
 const EMAIL_CONFIG = {
   service: 'gmail', // or 'outlook', 'yahoo'
-  user: EMAIL_USER_LETTERHEAD, // your-email@gmail.com
-  pass: EMAIL_PASS_LETTERHEAD, // app password
+  user: EMAIL_USER, // your-email@gmail.com
+  pass: EMAIL_PASS, // app password
   recipient: EMAIL_RECIPIENT,
   letterheadUser: EMAIL_USER_LETTERHEAD,
   letterheadPass: EMAIL_PASS_LETTERHEAD,
