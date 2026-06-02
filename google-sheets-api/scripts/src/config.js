@@ -18,9 +18,18 @@ const DEFAULT_CRED_FILES = [
 const AUDIT_SPREADSHEET_ID = '1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU';
 const AUDIT_SHEET_NAME = 'Audit_Log';
 
-const EMAIL_USER = 'devkhizerahmad@gmail.com';
-const EMAIL_PASS = 'aief unbt nkfa smrj';
-const EMAIL_RECIPIENT = 'devkhizerahmad@gmail.com';
+//const EMAIL_USER = 'devkhizerahmad@gmail.com';
+const EMAIL_USER = 'vdutta1485@gmail.com';
+const EMAIL_USER_LETTERHEAD = 'devkhizerahmad@gmail.com';
+//const EMAIL_PASS = 'aief unbt nkfa smrj';
+const EMAIL_PASS = 'soxa rgqv ebrs ofrf';
+const EMAIL_PASS_LETTERHEAD = 'aief unbt nkfa smrj';
+//const EMAIL_RECIPIENT = 'devkhizerahmad@gmail.com';
+const EMAIL_RECIPIENT = 'vdutta1485@gmail.com';
+const EMAIL_RECIPIENT_LETTERHEAD = 'devkhizerahmad@gmail.com';
+
+const RESEND_API_KEY = 're_DLgfgHeA_48GGw9uNahxXQ6zskexeZoEQ';
+const RESEND_FROM = 'Vineet.Dutta@hiveny.com';
 
 const CLEANING_SPREADSHEET_ID = '1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU';
 const INVENTORY_SPREADSHEET_ID = '1RobrLNYSmMUyq53dUcdmj2ePaU2YkagqLqgIgx7M4OU';
@@ -36,9 +45,14 @@ const CLEANING_DATE_COLOR = {
 // ===== EMAIL CONFIGURATION =====
 const EMAIL_CONFIG = {
   service: 'gmail', // or 'outlook', 'yahoo'
-  user: EMAIL_USER, // your-email@gmail.com
-  pass: EMAIL_PASS, // app password
+  user: EMAIL_USER_LETTERHEAD, // your-email@gmail.com
+  pass: EMAIL_PASS_LETTERHEAD, // app password
   recipient: EMAIL_RECIPIENT,
+  letterheadUser: EMAIL_USER_LETTERHEAD,
+  letterheadPass: EMAIL_PASS_LETTERHEAD,
+  letterheadRecipient: EMAIL_RECIPIENT_LETTERHEAD,
+  resendApiKey: RESEND_API_KEY,
+  resendFrom: RESEND_FROM,
 };
 
 const READ_ONLY_COMMANDS = new Set([

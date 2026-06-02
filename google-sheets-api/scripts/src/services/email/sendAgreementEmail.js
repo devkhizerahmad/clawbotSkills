@@ -1,69 +1,106 @@
 'use strict';
 
 const nodemailer = require('nodemailer');
-const fs = require('fs');
+const { Resend } = require('resend');
 const path = require('path');
 const { EMAIL_CONFIG } = require('../../config');
 const { logAudit } = require('../audit/logAudit');
+const fs = require('fs');
 
-async function sendAgreementEmail(recipientEmail, tenantName, pdfPath) {
-  // Use provided recipient or default
+async function sendAgreementEmail(recipientEmail, tenantName, pdfPath, isLetterhead) {
+  const pdfBuffer = fs.readFileSync(pdfPath);
   const emailTo = recipientEmail || EMAIL_CONFIG.recipient;
-
-  // Check email config
-  if (!EMAIL_CONFIG.user || !EMAIL_CONFIG.pass) {
-    console.log('Email config missing, skipping notification');    
-    return;
-  }
 
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(emailTo)) {
-    console.log(`Invalid email address: ${emailTo}, skipping notification`);    
+    console.log(`Invalid email address: ${emailTo}, skipping notification`);
     return;
   }
 
-  // Create transporter
-  const transporter = nodemailer.createTransport({
-    service: EMAIL_CONFIG.service,
-    auth: {
-      user: EMAIL_CONFIG.user,
-      pass: EMAIL_CONFIG.pass,
-    },
-  });
-
-  // Email content
-  const mailOptions = {
-    from: EMAIL_CONFIG.user,
-    to: emailTo,
-    subject: `Sublease Agreement - ${tenantName}`,
-    text: `
+  const subject = `Sublease Agreement - ${tenantName}`;
+  const text = `
 Hello ${tenantName},
 
 Please find attached your Sublease Agreement.
 
 This is an automated notification from ClawdBot.
-    `,
-    html: `
+  `;
+  const html = `
       <h2>📄 Sublease Agreement</h2>
       <p>Hello <b>${tenantName}</b>,</p>
       <p>Please find attached your Sublease Agreement.</p>
       <br>
       <p><i>This is an automated notification from ClawdBot.</i></p>
-    `,
-    attachments: [
-      {
-        filename: path.basename(pdfPath),
-        path: pdfPath,
-      },
-    ],
-  };
+  `;
 
-  // Send email
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Agreement email sent successfully to: ${emailTo}`);
-    
+    if (isLetterhead) {
+      const resendApiKey = process.env.RESEND_API_KEY || EMAIL_CONFIG.resendApiKey;
+      const resendFrom = process.env.RESEND_FROM || EMAIL_CONFIG.resendFrom;
+
+      if (!resendApiKey || !resendFrom) {
+        console.log('Resend config missing, skipping notification');
+        return;
+      }
+      try {
+        const resend = new Resend(resendApiKey);
+        await resend.emails.send({
+          from: resendFrom,
+          to: emailTo,
+          subject,
+          //text,
+          html,
+          attachments: [
+            {
+              filename: path.basename(pdfPath),
+              content: pdfBuffer,
+            },
+          ],
+        });
+        console.log(`Agreement email sent successfully to: ${emailTo} via Resend`);
+      } catch (err) {
+        console.error('Resend email send failed:', err.message);
+        throw err; // Re-throw to be caught by outer catch for audit logging
+      }
+    } else {
+      const userEmail = EMAIL_CONFIG.user;
+      const userPass = EMAIL_CONFIG.pass;
+
+      if (!userEmail || !userPass) {
+        console.log('Email config missing, skipping notification');
+        return;
+      }
+      try {
+
+        const transporter = nodemailer.createTransport({
+          service: EMAIL_CONFIG.service,
+          auth: {
+            user: userEmail,
+            pass: userPass,
+          },
+        });
+
+        await transporter.sendMail({
+          from: userEmail,
+          to: emailTo,
+          subject,
+          text,
+          html,
+          attachments: [
+            {
+              filename: path.basename(pdfPath),
+              path: pdfPath,
+            },
+          ],
+        });
+        console.log(`Agreement email sent successfully to: ${emailTo} via nodemailer`);
+      } catch (err) {
+        console.error('Nodemailer email send failed:', err.message);
+        throw err; // Re-throw to be caught by outer catch for audit logging
+      }
+    }
+
     // Audit log for successful email send (mutation complete)
     try {
       await logAudit({

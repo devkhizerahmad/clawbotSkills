@@ -14,7 +14,7 @@ const {
   addEmailInLocal,
 } = require('../services/email/registerEmail');
 const { updateLeaseSheets } = require('../services/lease/leaseService');
-const { INVENTORY_SPREADSHEET_ID } = require('../config');
+const { INVENTORY_SPREADSHEET_ID, EMAIL_CONFIG } = require('../config');
 
 async function lease({ sheets, args, flags, command }) {
   const commandArgs = args.slice(1);
@@ -74,6 +74,16 @@ async function lease({ sheets, args, flags, command }) {
 
   const prorate = prorateRaw;
 
+  let includeLetterHead = false;
+  const letterheadMatch = leaseStr.match(
+    /(?:include\s+letterhead|letterhead)\s*(?:is)?\s*(yes|no|true|false)/i,
+  );
+  if (letterheadMatch) {
+    const letterheadValue = letterheadMatch[1].toLowerCase();
+    includeLetterHead =
+      letterheadValue === 'yes' || letterheadValue === 'true';
+  }
+
   if (!tenantName || !apartment || !startDate || !endDate || !amount) {
     throw new Error(
       'Could not parse all required lease details. Please check the string format.',
@@ -104,6 +114,7 @@ async function lease({ sheets, args, flags, command }) {
   console.log('Prorate:', prorate);
   console.log('Contact:', contact);
   console.log('Email:', email);
+  console.log('Include Letterhead:', includeLetterHead);
 
   // 1. Generate Agreement PDF First
   console.log('Generating agreement PDF...');
@@ -120,8 +131,9 @@ async function lease({ sheets, args, flags, command }) {
     room,
     contact,
     email,
+    includeLetterHead,
   };
-  const pdfPath = await generateAgreementPdf(agreementData, true, false);
+  const pdfPath = await generateAgreementPdf(agreementData, includeLetterHead, false);
 
   // 2. Save Lease to MongoDB
   console.log('Saving lease to MongoDB...');
@@ -129,6 +141,10 @@ async function lease({ sheets, args, flags, command }) {
     ...agreementData,
     pdfPath,
   });
+
+  const agreementReplyTo = includeLetterHead
+    ? EMAIL_CONFIG.letterheadUser
+    : undefined;
 
   // 3. Update Spreadsheets
   console.log('Updating spreadsheets...');
@@ -144,15 +160,18 @@ async function lease({ sheets, args, flags, command }) {
   const emailAlreadyInLocal = email ? hasEmailInLocal(email) : false;
 
   if (email && !emailAlreadyExists && !emailAlreadyInLocal) {
-    console.log(`Sending agreement to ${email}...`);
+    try {
+      console.log(`Sending agreement to ${email}...`);
 
-    await sendAgreementEmail(email, tenantName, pdfPath);
-    console.log('Saving contract email to MongoDB...');
-    await saveContractEmail(leaseId, email);
-    console.log('Adding email to local registry...');
-    addEmailInLocal(email);
-    console.log('Email sent successfully');
-    
+      await sendAgreementEmail(email, tenantName, pdfPath, includeLetterHead);
+      console.log('Saving contract email to MongoDB...');
+      await saveContractEmail(leaseId, email);
+      console.log('Adding email to local registry...');
+      addEmailInLocal(email);
+      console.log('Email sent successfully');
+    } catch (err) {
+      console.error('Error sending email:', err.message);
+    }
     // NOTE: Email sending action is recorded via saveContractEmail audit log in mongodbService
   } else {
     console.log('No email provided or email already processed, skipping email sending.');
