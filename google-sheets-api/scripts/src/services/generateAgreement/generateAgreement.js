@@ -372,6 +372,9 @@ async function generateAgreementPdf(
     const params = new URLSearchParams();
     Object.keys(data).forEach((key) => {
       if (data[key]) params.append(key, data[key]);
+      if (includeLetterhead) {
+        params.append('includeLetterhead', 'true');
+      }
     });
     const signatureUrl = `${baseUrl}?${params.toString()}`;
 
